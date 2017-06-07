@@ -166,17 +166,19 @@ bool CFrameGrabber::GrabImage(int _nFrameIndex)
 	}
 
 	char strImagePath[300];
+	cv::ImreadModes readMode = cv::IMREAD_COLOR;
 	if (HJ_READ_KINECT_DEPTH == nInputType_)
 	{
 		sprintf_s(strImagePath, sizeof(strImagePath),
 			"%s/%06d.png", strImageFoler_.c_str(), _nFrameIndex);
+		//readMode = cv::IMREAD_GRAYSCALE;
 	}
 	else
 	{
 		sprintf_s(strImagePath, sizeof(strImagePath),
 			"%s/frame_%04d.jpg", strImageFoler_.c_str(), _nFrameIndex);
 	}	
-	matFrame_ = cv::imread(strImagePath, cv::IMREAD_COLOR);
+	matFrame_ = cv::imread(strImagePath, readMode);
 	if (matFrame_.empty())
 	{
 		return false;

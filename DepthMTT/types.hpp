@@ -257,15 +257,41 @@ class CDetection
 	//----------------------------------------------------------------
 public:
 	// constructors
-	CDetection() : box(0.0, 0.0, 0.0, 0.0), score(0.0) {}
+	CDetection() : box(0.0, 0.0, 0.0, 0.0), depth(0.0), score(0.0) {}
 	CDetection(const CDetection &c) { *this = c; };
+
+	double GetDepth()
+	{
+		assert(!patch.empty());
+		int numPixels = 0;
+		double totalDepths = 0.0;
+		double windowSize = patch.cols / 4;
+		
+		for (int col = std::max(0, int(patch.cols / 2 - windowSize));
+			col < std::min(int(patch.cols / 2 + windowSize), patch.cols);
+			col++)
+		{
+			for (int row = std::max(0, int(patch.rows / 2 - windowSize));
+				row < std::min(int(patch.rows / 2 + windowSize), patch.rows);
+				row++)
+			{
+				numPixels++;
+				totalDepths += (double)patch.at<unsigned char>(row, col);
+			}
+		}
+		depth = totalDepths / (double)numPixels;
+
+		return depth;
+	}
 
 	//----------------------------------------------------------------
 	// VARIABLES
 	//----------------------------------------------------------------
 public:
 	Rect   box;
+	double depth;
 	double score;
+	cv::Mat patch;
 };
 typedef std::vector<CDetection> DetectionSet;
 

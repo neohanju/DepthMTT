@@ -32,7 +32,6 @@ public:
 	void Reset();
 	void Run();
 
-	//bool TerminateProcess(int _nThreadID);
 	//bool WakeupGDTThreads();
 	//bool WakeupAssociationThread(HJ_THREAD_TYPE _threadType, unsigned int _frameIdx);	
 	bool RequestGrabbing();
@@ -40,7 +39,6 @@ public:
 	bool RequestTracking();
 
 private:
-
 	//----------------------------------------------------------------
 	// VARIABLES
 	//----------------------------------------------------------------

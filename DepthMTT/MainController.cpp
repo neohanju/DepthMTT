@@ -30,7 +30,11 @@ unsigned int __stdcall GrabberWork(void *data)
 	while (gGrabberRun && pParams->pDataManager->GetRunFlag())
 	{
 		// wait until the detector takes grabbed frame
-		while (pParams->pDataManager->IsFrameBufferFull(CAM_ID)) { Sleep(5); }
+		if (pParams->pDataManager->IsFrameBufferFull(CAM_ID)) 
+		{ 
+			Sleep(5); 
+			continue;
+		}
 
 		// grabbing frame
 		switch (pParams->pGrabber->GrabFrame())
@@ -48,7 +52,11 @@ unsigned int __stdcall GrabberWork(void *data)
 			break;
 		case HJ_GR_DATASET_ENDED:
 			gGrabberRun = false;
-			hj::printf_debug("  Reach the end of the dataset\n");			
+			hj::printf_debug("  Reach the end of the dataset\n");		
+			// terminate overall process
+			pParams->pDataManager->SetRunFlag(false);
+			pParams->pMainController->RequestDetection();
+			pParams->pMainController->RequestTracking();
 			break;
 		default:
 			hj::printf_debug("  Fail to grab a frame\n");			
@@ -57,7 +65,7 @@ unsigned int __stdcall GrabberWork(void *data)
 	}
 
 	hj::printf_debug("Grabber thread is terminated\n");
-	pParams->pGrabber->Finalize();
+	pParams->pGrabber->Finalize();	
 
 	return 0;
 }
@@ -86,10 +94,17 @@ unsigned int __stdcall DetectorWork(void *data)
 	while (gDetectorRun && pParams->pDataManager->GetRunFlag())
 	{
 		// wait until the tracker takes detection result
-		while (pParams->pDataManager->IsDetectionBufferFull(CAM_ID)) { Sleep(5); }
+		if (pParams->pDataManager->IsDetectionBufferFull(CAM_ID))
+		{
+			Sleep(5); 
+			continue;
+		}
+		if (!pParams->pDataManager->IsFrameBufferFull(CAM_ID))
+		{
+			Sleep(5);
+			continue;
+		}
 
-		// take frame image
-		while (!pParams->pDataManager->IsFrameBufferFull(CAM_ID)) { Sleep(5); }
 		pParams->pDataManager->GetFrameImage(CAM_ID, matFrame, false, &nFrameIndex);
 
 		// virtual detector reading .txt files from a disk
@@ -99,6 +114,17 @@ unsigned int __stdcall DetectorWork(void *data)
 			= hj::ReadDetectionResultWithTxt(
 				strFilePath,
 				pParams->nDetectionType);
+
+		// get depth and patch
+		cv::cvtColor(matFrame, matFrame, CV_BGR2GRAY);
+		for (int detIdx = 0; detIdx < vecDetections.size(); detIdx++)
+		{
+			int x = (int)std::max(0.0, vecDetections[detIdx].box.x);
+			int y = (int)std::max(0.0, vecDetections[detIdx].box.y);
+			int w = (int)std::min((double)(matFrame.cols - x - 1), vecDetections[detIdx].box.w);
+			int h = (int)std::min((double)(matFrame.rows - y - 1), vecDetections[detIdx].box.h);
+			vecDetections[detIdx].patch = matFrame(cv::Rect(x, y, w, h)).clone();
+		}
 
 		hj::printf_debug("  Detections are generated at frame %d\n", nFrameIndex);
 		pParams->pDataManager->SetDetectionResult(CAM_ID, vecDetections);
@@ -134,12 +160,18 @@ unsigned int __stdcall TrackerWork(void *data)
 
 	while (gTrackerRun && pParams->pDataManager->GetRunFlag())
 	{
-		// take frame image
-		while (!pParams->pDataManager->IsFrameBufferFull(CAM_ID)) { Sleep(5); }
-		pParams->pDataManager->GetFrameImage(CAM_ID, matFrame, true, &nFrameIndex);
+		if (!pParams->pDataManager->IsFrameBufferFull(CAM_ID))
+		{
+			Sleep(5); 
+			continue;
+		}
+		if (!pParams->pDataManager->IsDetectionBufferFull(CAM_ID)) 
+		{
+			Sleep(5); 
+			continue;
+		}
 
-		// take detections
-		while (!pParams->pDataManager->IsDetectionBufferFull(CAM_ID)) { Sleep(5); }
+		pParams->pDataManager->GetFrameImage(CAM_ID, matFrame, true, &nFrameIndex);
 		pParams->pDataManager->GetDetectionResult(CAM_ID, &vecDetections);
 
 		// do tracking
@@ -391,26 +423,6 @@ bool CMainController::RequestTracking()
 	return true;
 }
 
-
-//bool CMainController::TerminateProcess(int _nThreadID)
-//{
-//	hj::printf_debug("  >> Overall process is terminated by thread %d\n", _nThreadID);
-//	cDataManager_.SetRunFlag(false);
-//
-//	for (int camIdx = 0; camIdx < numCameras_; camIdx++)
-//	{		
-//		gArrGDTThreadRun[camIdx] = false;
-//		hj::printf_debug("  >> resume GDT thread no.%d\n", camIdx);
-//		ResumeThread(vecHGDTThreads_[camIdx]);
-//	}
-//	
-//	gAssociationThreadRun = false;
-//	ResumeThread(hAssoicationThread_);
-//
-//	gGUIThreadRun = false;
-//
-//	return true;
-//}
 //
 //
 //bool CMainController::WakeupGDTThreads()

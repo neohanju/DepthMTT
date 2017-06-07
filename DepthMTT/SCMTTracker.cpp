@@ -214,14 +214,25 @@ void CSCMTTracker::Finalize(void)
  Return Values:
 	- CTrack2DResult: tracking result of the current frame
 ************************************************************************/
-CTrack2DResult& CSCMTTracker::Track(std::vector<CDetection> vecInputDetections, cv::Mat curFrame, int frameIdx)
+CTrack2DResult& CSCMTTracker::Track(
+	std::vector<CDetection> vecInputDetections, 
+	cv::Mat curFrame, 
+	int frameIdx)
 {
-	assert(bInit_ && curFrame.rows == matGrayImage_.rows && curFrame.cols == matGrayImage_.cols);	
+	assert(bInit_ && curFrame.rows == matGrayImage_.rows 
+		&& curFrame.cols == matGrayImage_.cols);	
 	
 	nCurrentFrameIdx_ = frameIdx;
 
 	/* buffering */
-	cv::cvtColor(curFrame, matGrayImage_, CV_BGR2GRAY);
+	if (1 < curFrame.channels())
+	{
+		cv::cvtColor(curFrame, matGrayImage_, CV_BGR2GRAY);
+	}
+	else
+	{
+		matGrayImage_ = curFrame;
+	}
 	cImageBuffer_.insert_resize(matGrayImage_, sizeBufferImage_);
 	if (!matTrackingResult_.empty()) { matTrackingResult_.release(); }
 	matTrackingResult_ = curFrame.clone();
@@ -274,7 +285,8 @@ void CSCMTTracker::Track2D_GenerateDetectedObjects(
 		//	*pCalibrationInfo_,
 		//	dDefaultBottomZ_, 
 		//	&estimatedLocation);
-		if (stParam_.dDetectionMaxHeight < estimatedHeight || stParam_.dDetectionMinHeight > estimatedHeight)
+		if (stParam_.dDetectionMaxHeight < estimatedHeight 
+			|| stParam_.dDetectionMinHeight > estimatedHeight)
 		{ 
 			continue; 
 		}
@@ -314,7 +326,8 @@ void CSCMTTracker::Track2D_BackwardTracking(std::vector<CDetectedObject> &vecDet
 	//---------------------------------------------------
 	for (size_t dIdx = 0; dIdx < vecDetectedObjects.size(); dIdx++)
 	{			
-		hj::Rect rectRescaledDetectionBox = vecDetectedObjects[dIdx].detection.box.scale(stParam_.dImageRescale);
+		hj::Rect rectRescaledDetectionBox = 
+			vecDetectedObjects[dIdx].detection.box.scale(stParam_.dImageRescale);
 		hj::Rect rectEstimatedBox;
 
 		std::vector<cv::Point2f> vecInputFeatures, vecTrackedFeatures;
