@@ -74,12 +74,34 @@
 
 **************************************************************************/
 
+#include "opencv2\highgui\highgui.hpp"
 #include "types.hpp"
-#include "MainController.h"
+#include "SCMTTracker.h"
+
+std::string strDatasetPath;
+cv::Mat GetFrame(int _fIdx);
 
 int main(int argc, char** argv)
 {	
-	CMainController mainController;
+	if (argc < 2)
+	{
+		printf("[WARNING] Insufficient number of parameters\n");
+		printf("- Dataset path\n");
+		printf("- Index of starting frame\n");
+		printf("- Index of ending frame\n");
+		return -1;
+	}
+	strDatasetPath = std::string(argv[1]);
+	
+	hj::CSCMTTracker  cMultiTracker2D;
+
+	int fIdxStart = 100;
+	int fIdxStart = 100;
+	for (int fIdx = fIdxStart; fIdx < fIdxStart; fIdx++)
+	{
+
+	}
+
 	if (mainController.Initialize("data/settings.xml"))
 	{
 		mainController.Run();
@@ -87,4 +109,12 @@ int main(int argc, char** argv)
 	}
 
 	return 0;
+}
+
+cv::Mat GetFrame(int _fIdx)
+{
+	char strImagePath[128];
+	sprintf_s(strImagePath, sizeof(strImagePath),
+		"%s/%06d.png", strDatasetPath.c_str(), _fIdx);
+	return cv::imread(strImagePath, cv::IMREAD_GRAYSCALE);
 }
