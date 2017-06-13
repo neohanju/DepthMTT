@@ -5,7 +5,7 @@
 #include "HungarianMethod.h"
 #include "haanju_math.hpp"
 #include "haanju_visualize.hpp"
-#include "SCMTTracker.h"
+#include "DepthMTTracker.h"
 
 // TEMPORAL
 #include "haanju_3D.hpp"
@@ -17,12 +17,11 @@ namespace hj
 /////////////////////////////////////////////////////////////////////////
 // CDetectedObject MEMBER FUNCTIONS
 /////////////////////////////////////////////////////////////////////////
-
 CDetectedObject::CDetectedObject()
 	: id(0)
 	, location(0.0, 0.0, 0.0)
 	, height(0.0)
-	, bMatchedWithTracker(false)
+	, bMatchedWithTracklet(false)
 	, bCoveredByOtherDetection(false)
 {
 }
@@ -41,11 +40,11 @@ CDetectedObject::~CDetectedObject()
 	if (!patchRGB.empty())  { patchRGB.release(); }
 }
 
-/////////////////////////////////////////////////////////////////////////
-// CTracker2D MEMBER FUNCTIONS
-/////////////////////////////////////////////////////////////////////////
 
-CTracker2D::CTracker2D()
+/////////////////////////////////////////////////////////////////////////
+// CTracklet MEMBER FUNCTIONS
+/////////////////////////////////////////////////////////////////////////
+CTracklet::CTracklet()
 	: id(0)
 	, timeStart(0)
 	, timeEnd(0)
@@ -60,7 +59,7 @@ CTracker2D::CTracker2D()
 }
 
 
-CTracker2D::~CTracker2D()
+CTracklet::~CTracklet()
 {
 	boxes.clear();
 	heads.clear();
@@ -70,9 +69,9 @@ CTracker2D::~CTracker2D()
 
 
 /////////////////////////////////////////////////////////////////////////
-// CSCMTTracker MEMBER FUNCTIONS
+// DepthMTTracker MEMBER FUNCTIONS
 /////////////////////////////////////////////////////////////////////////
-CSCMTTracker::CSCMTTracker()
+DepthMTTracker::DepthMTTracker()
 	: bInit_(false)
 	, bVisualizeResult_(false)
 	, strVisWindowName_("")
@@ -80,7 +79,7 @@ CSCMTTracker::CSCMTTracker()
 }
 
 
-CSCMTTracker::~CSCMTTracker()
+DepthMTTracker::~DepthMTTracker()
 {
 	Finalize();
 }
@@ -91,13 +90,11 @@ CSCMTTracker::~CSCMTTracker()
  Description:
 	- Initialize the multiple target tracker with parameters
  Input Arguments:
-	- nCamID:      index of the camera
-	- stParams:    parameters for tracking algorithm
-	- ptCalibInfo: calibration information
+	- _stParams: structure of parameters
  Return Values:
 	- none
 ************************************************************************/
-void CSCMTTracker::Initialize(int _nCamID, stParamTrack2D &_stParams)
+void DepthMTTracker::Initialize(stParamTrack &_stParams)
 {
 	// check duplicated initialization
 	if (bInit_) { Finalize(); }
@@ -105,29 +102,21 @@ void CSCMTTracker::Initialize(int _nCamID, stParamTrack2D &_stParams)
 	stParam_ = _stParams;
 	stParam_.dImageRescaleRecover = 1.0 / stParam_.dImageRescale;
 
-	nCamID_ = _nCamID;
-	nCurrentFrameIdx_ = 0;
-	trackingResult_.camID = nCamID_;
-	trackingResult_.frameIdx = 0;
-	trackingResult_.object2DInfos.clear();
+	nCurrentFrameIdx_ = 0;	
+	
+	trackingResult_.frameIdx = nCurrentFrameIdx_;
+	trackingResult_.objectInfos.clear();
 
-	//// calibration related
-	//pCalibrationInfo_ = _stParams.pCalibrationInfo;	
-
-	// TODO: modify below to set parameters with _stParams
-	//nInputWidth_      = pCalibrationInfo_->cCamModel.width();
-	//nInputHeight_     = pCalibrationInfo_->cCamModel.height();
 	nInputWidth_  = _stParams.nImageWidth;
 	nInputHeight_ = _stParams.nImageHeight;
-	dDefaultBottomZ_  = 0.0;
 
 	// detection related
 	vecDetectedObjects_.clear();
 
 	// tracker related
-	nNewTrackerID_ = 0;
-	listCTracker2D_.clear();
-	queueActiveTracker2D_.clear();
+	nNewTrackletID_ = 0;
+	listCTracklet_.clear();
+	queueActiveTracklet_.clear();
 
 	// input related
 	sizeBufferImage_ = cv::Size(
@@ -142,7 +131,7 @@ void CSCMTTracker::Initialize(int _nCamID, stParamTrack2D &_stParams)
 
 	// visualization related
 	bVisualizeResult_ = stParam_.bVisualize;
-	strVisWindowName_ = "2D Tracking with cam " + std::to_string(nCamID_);
+	strVisWindowName_ = "Tracking result";
 	if (bVisualizeResult_)
 	{
 		vecColors_ = hj::GenerateColors(400);
@@ -165,7 +154,7 @@ void CSCMTTracker::Initialize(int _nCamID, stParamTrack2D &_stParams)
  Return Values:
 	- none
 ************************************************************************/
-void CSCMTTracker::Finalize(void)
+void DepthMTTracker::Finalize(void)
 {	
 	if (!bInit_) { return; }
 
@@ -173,16 +162,16 @@ void CSCMTTracker::Finalize(void)
 	this->vecDetectedObjects_.clear();
 
 	/* tracker related */
-	for (std::list<CTracker2D>::iterator trackerIter = listCTracker2D_.begin();
-		trackerIter != listCTracker2D_.end();
+	for (std::list<CTracklet>::iterator trackerIter = listCTracklet_.begin();
+		trackerIter != listCTracklet_.end();
 		trackerIter++)
 	{
 		(*trackerIter).boxes.clear();
 		(*trackerIter).featurePoints.clear();
 		(*trackerIter).trackedPoints.clear();
 	}
-	listCTracker2D_.clear();
-	queueActiveTracker2D_.clear();
+	listCTracklet_.clear();
+	queueActiveTracklet_.clear();
 
 	/* input related */
 	cImageBuffer_.clear();
@@ -193,7 +182,7 @@ void CSCMTTracker::Finalize(void)
 	arrMatchingCost_.clear();
 
 	/* result related */
-	trackingResult_.object2DInfos.clear();
+	trackingResult_.objectInfos.clear();
 
 	/* visualize related */
 	if (bVisualizeResult_) { cv::destroyWindow(strVisWindowName_); }
@@ -212,10 +201,10 @@ void CSCMTTracker::Finalize(void)
 	- curFrame: current input frame image
 	- frameIdx: current frame index
  Return Values:
-	- CTrack2DResult: tracking result of the current frame
+	- CTrackResult: tracking result of the current frame
 ************************************************************************/
-CTrack2DResult& CSCMTTracker::Track(
-	std::vector<CDetection> vecInputDetections, 
+CTrackResult& DepthMTTracker::Track(
+	DetectionSet vecInputDetections, 
 	cv::Mat curFrame, 
 	int frameIdx)
 {
@@ -225,28 +214,21 @@ CTrack2DResult& CSCMTTracker::Track(
 	nCurrentFrameIdx_ = frameIdx;
 
 	/* buffering */
-	if (1 < curFrame.channels())
-	{
-		cv::cvtColor(curFrame, matGrayImage_, CV_BGR2GRAY);
-	}
-	else
-	{
-		matGrayImage_ = curFrame;
-	}
+	matGrayImage_ = curFrame;
 	cImageBuffer_.insert_resize(matGrayImage_, sizeBufferImage_);
 	if (!matTrackingResult_.empty()) { matTrackingResult_.release(); }
 	matTrackingResult_ = curFrame.clone();
 
 	/* input pre-processing */
-	Track2D_GenerateDetectedObjects(vecInputDetections, vecDetectedObjects_);
+	GenerateDetectedObjects(vecInputDetections, vecDetectedObjects_);
 
 	/* bi-directional tracking */
-	Track2D_BackwardTracking(vecDetectedObjects_);
-	Track2D_ForwardTracking(queueActiveTracker2D_);	
-	Track2D_MatchingAndUpdating(vecDetectedObjects_, queueActiveTracker2D_);
+	BackwardTracking(vecDetectedObjects_);
+	ForwardTracking(queueActiveTracklet_);	
+	MatchingAndUpdating(vecDetectedObjects_, queueActiveTracklet_);
 
 	/* result packaging */
-	Track2D_ResultPackaging();
+	ResultPackaging();
 
 	/* visualize */
 	if (bVisualizeResult_) { VisualizeResult(); }
@@ -256,7 +238,7 @@ CTrack2DResult& CSCMTTracker::Track(
 
 
 /************************************************************************
- Method Name: Track2D_GenerateDetectedObjects
+ Method Name: GenerateDetectedObjects
  Description:
 	- Generate set of 'CDetectedObject' with input detection.
  Input Arguments:
@@ -265,8 +247,8 @@ CTrack2DResult& CSCMTTracker::Track(
  Return Values:
 	- none
 ************************************************************************/
-void CSCMTTracker::Track2D_GenerateDetectedObjects(
-	const std::vector<CDetection> &vecDetections,
+void DepthMTTracker::GenerateDetectedObjects(
+	DetectionSet &vecDetections,
 	std::vector<CDetectedObject> &vecDetectedObjects)
 {
 	/* reset 'vecDetectedObjecs' for usage of the current frame */
@@ -298,7 +280,7 @@ void CSCMTTracker::Track2D_GenerateDetectedObjects(
 		curDetection.detection.box *= stParam_.dImageRescale;
 		curDetection.location       = estimatedLocation;
 		curDetection.height         = estimatedHeight;
-		curDetection.bMatchedWithTracker      = false;
+		curDetection.bMatchedWithTracklet     = false;
 		curDetection.bCoveredByOtherDetection = false;
 		curDetection.vecvecTrackedFeatures.reserve(stParam_.nBackTrackingLength);
 		curDetection.boxes.reserve(stParam_.nBackTrackingLength);
@@ -310,7 +292,7 @@ void CSCMTTracker::Track2D_GenerateDetectedObjects(
 
 
 /************************************************************************
- Method Name: Track2D_BackwardTracking
+ Method Name: BackwardTracking
  Description:
 	- Track the input detections in a backward direction with input frame
 	  buffers.
@@ -319,7 +301,7 @@ void CSCMTTracker::Track2D_GenerateDetectedObjects(
  Return Values:
 	- none
 ************************************************************************/
-void CSCMTTracker::Track2D_BackwardTracking(std::vector<CDetectedObject> &vecDetectedObjects)
+void DepthMTTracker::BackwardTracking(std::vector<CDetectedObject> &vecDetectedObjects)
 {
 	//---------------------------------------------------
 	// BACKWARD FEATURE TRACKING
@@ -385,7 +367,7 @@ void CSCMTTracker::Track2D_BackwardTracking(std::vector<CDetectedObject> &vecDet
 
 
 /************************************************************************
- Method Name: Track2D_ForwardTracking
+ Method Name: ForwardTracking
  Description:
 	- Estimate trackers positions at the current frame. Estimated positions
 	  are inserted at the end of box array of each tracker.
@@ -394,7 +376,7 @@ void CSCMTTracker::Track2D_BackwardTracking(std::vector<CDetectedObject> &vecDet
  Return Values:
 	- none
 ************************************************************************/
-void CSCMTTracker::Track2D_ForwardTracking(std::deque<CTracker2D*> &queueTrackers)
+void DepthMTTracker::ForwardTracking(std::deque<CTracklet*> &queueTrackers)
 {
 	if (2 > cImageBuffer_.num_elements())
 	{ 
@@ -433,7 +415,7 @@ void CSCMTTracker::Track2D_ForwardTracking(std::deque<CTracker2D*> &queueTracker
 
 
 /************************************************************************
- Method Name: Track2D_MatchingAndUpdating
+ Method Name: MatchingAndUpdating
  Description:
 	- Do matching between detections and trackers. And then, update trackers
  Input Arguments:
@@ -442,9 +424,9 @@ void CSCMTTracker::Track2D_ForwardTracking(std::deque<CTracker2D*> &queueTracker
  Return Values:
 	- none
 ************************************************************************/
-void CSCMTTracker::Track2D_MatchingAndUpdating(
+void DepthMTTracker::MatchingAndUpdating(
 	const std::vector<CDetectedObject> &vecDetectedObjects,
-	std::deque<CTracker2D*> &queueTrackers)
+	std::deque<CTracklet*> &queueTrackers)
 {
 	/////////////////////////////////////////////////////////////////////////////
 	// CALCULATE MATCHING COSTS
@@ -463,7 +445,7 @@ void CSCMTTracker::Track2D_MatchingAndUpdating(
 	//---------------------------------------------------
 	for (size_t trackIdx = 0; trackIdx < queueTrackers.size(); trackIdx++)
 	{
-		CTracker2D *curTracker = queueTrackers[trackIdx];
+		CTracklet *curTracker = queueTrackers[trackIdx];
 
 
 		for (size_t detectIdx = 0, costPos = trackIdx; 
@@ -599,16 +581,16 @@ void CSCMTTracker::Track2D_MatchingAndUpdating(
 	/////////////////////////////////////////////////////////////////////////////
 	// MATCHING
 	/////////////////////////////////////////////////////////////////////////////
-	trackingResult_.object2DInfos.clear();
+	trackingResult_.objectInfos.clear();
 	size_t numDetection = this->vecDetectedObjects_.size();
 	CHungarianMethod cHungarianMatcher;
-	cHungarianMatcher.Initialize(arrMatchingCost_, (unsigned int)numDetection, (unsigned int)this->queueActiveTracker2D_.size());
+	cHungarianMatcher.Initialize(arrMatchingCost_, (unsigned int)numDetection, (unsigned int)this->queueActiveTracklet_.size());
 	stMatchInfo *curMatchInfo = cHungarianMatcher.Match();
 	for (size_t matchIdx = 0; matchIdx < curMatchInfo->rows.size(); matchIdx++)
 	{
 		if (maxCost == curMatchInfo->matchCosts[matchIdx]) { continue; }
 		CDetectedObject *curDetection = &this->vecDetectedObjects_[curMatchInfo->rows[matchIdx]];
-		CTracker2D *curTracker = this->queueActiveTracker2D_[curMatchInfo->cols[matchIdx]];
+		CTracklet *curTracker = this->queueActiveTracklet_[curMatchInfo->cols[matchIdx]];
 
 		//---------------------------------------------------
 		// MATCHING VALIDATION
@@ -633,15 +615,15 @@ void CSCMTTracker::Track2D_MatchingAndUpdating(
 		curTracker->height         = curDetection->height;
 		curTracker->boxes.push_back(curDetection->detection.box);
 
-		curDetection->bMatchedWithTracker = true;
+		curDetection->bMatchedWithTracklet = true;
 		//queueNewActiveTrackers.push_back(curTracker);
 
 		////---------------------------------------------------
 		//// RESULT PACKAGING
 		////---------------------------------------------------
-		//CObject2DInfo objectInfo;
+		//CObjectInfo objectInfo;
 		//ResultWithTracker(curTracker, objectInfo);
-		//trackingResult_.object2DInfos.push_back(objectInfo);
+		//trackingResult_.objectInfos.push_back(objectInfo);
 
 		// update features with detection (after result packaging)
 		curTracker->featurePoints = curDetection->vecvecTrackedFeatures.front();
@@ -656,10 +638,10 @@ void CSCMTTracker::Track2D_MatchingAndUpdating(
 		detectionIter != this->vecDetectedObjects_.end();
 		detectionIter++)
 	{
-		if ((*detectionIter).bMatchedWithTracker) { continue; }
+		if ((*detectionIter).bMatchedWithTracklet) { continue; }
 
-		CTracker2D newTracker;
-		newTracker.id = this->nNewTrackerID_++;
+		CTracklet newTracker;
+		newTracker.id = this->nNewTrackletID_++;
 		newTracker.timeStart = this->nCurrentFrameIdx_;
 		newTracker.timeEnd = this->nCurrentFrameIdx_;
 		newTracker.timeLastUpdate = this->nCurrentFrameIdx_;
@@ -673,23 +655,23 @@ void CSCMTTracker::Track2D_MatchingAndUpdating(
 		newTracker.height = (*detectionIter).height;
 
 		// generate tracklet instance
-		this->listCTracker2D_.push_back(newTracker);
-		//queueNewActiveTrackers.push_back(&this->listCTracker2D_.back());
+		this->listCTracklet_.push_back(newTracker);
+		//queueNewActiveTrackers.push_back(&this->listCTracklet_.back());
 
 		////---------------------------------------------------
 		//// RESULT PACKAGING
 		////---------------------------------------------------
-		//CObject2DInfo objectInfo;
+		//CObjectInfo objectInfo;
 		//ResultWithTracker(&newTracker, objectInfo);
-		//trackingResult_.object2DInfos.push_back(objectInfo);
+		//trackingResult_.objectInfos.push_back(objectInfo);
 	}
 
 	/////////////////////////////////////////////////////////////////////////////
 	// TRACKER TERMINATION
 	/////////////////////////////////////////////////////////////////////////////
-	std::deque<CTracker2D*> queueNewActiveTrackers;
-	for (std::list<CTracker2D>::iterator trackerIter = listCTracker2D_.begin();
-		trackerIter != listCTracker2D_.end();
+	std::deque<CTracklet*> queueNewActiveTrackers;
+	for (std::list<CTracklet>::iterator trackerIter = listCTracklet_.begin();
+		trackerIter != listCTracklet_.end();
 		/*trackerIter++*/)
 	{
 		if ((*trackerIter).timeLastUpdate == nCurrentFrameIdx_)
@@ -703,9 +685,9 @@ void CSCMTTracker::Track2D_MatchingAndUpdating(
 		(*trackerIter).boxes.clear();
 		(*trackerIter).featurePoints.clear();
 		(*trackerIter).trackedPoints.clear();
-		trackerIter = this->listCTracker2D_.erase(trackerIter);
+		trackerIter = this->listCTracklet_.erase(trackerIter);
 	}
-	queueActiveTracker2D_ = queueNewActiveTrackers;
+	queueActiveTracklet_ = queueNewActiveTrackers;
 
 	//// matching cost
 	//int cost_pos = 0;
@@ -724,27 +706,27 @@ void CSCMTTracker::Track2D_MatchingAndUpdating(
 
 
 /************************************************************************
- Method Name: ResultWithTracker
+ Method Name: ResultPackaging
  Description:
-	-
+	- packaging the tracking result into 'trackingResult_'
  Input Arguments:
-	-
+	- none
  Return Values:
-	-
+	- none
 ************************************************************************/
-void CSCMTTracker::Track2D_ResultPackaging()
+void DepthMTTracker::ResultPackaging()
 {
 	time_t timePackaging = clock();
-	CObject2DInfo objectInfo;
-
-	trackingResult_.camID     = nCamID_;
+	CObjectInfo objectInfo;
+	
 	trackingResult_.frameIdx  = nCurrentFrameIdx_;
 	trackingResult_.timeStamp = (unsigned int)timePackaging;
-	trackingResult_.object2DInfos.clear();	
-	for (size_t trackerIdx = 0; trackerIdx < queueActiveTracker2D_.size(); trackerIdx++)
+	trackingResult_.objectInfos.clear();	
+	for (size_t trackerIdx = 0; trackerIdx < queueActiveTracklet_.size(); trackerIdx++)
 	{
-		ResultWithTracker(queueActiveTracker2D_[trackerIdx], objectInfo);
-		trackingResult_.object2DInfos.push_back(objectInfo);
+		// TODO: modify the input arguments of the function at the below
+		//ResultWithTrajectories(queueActiveTracklet_[trackerIdx], objectInfo);
+		trackingResult_.objectInfos.push_back(objectInfo);
 	}
 
 	int cost_pos = 0;
@@ -767,17 +749,13 @@ void CSCMTTracker::Track2D_ResultPackaging()
  Description:
 	- Tracks the input feature points of the input frame in the target frame.
  Input Arguments:
-	- boundingBox      : bounding box of the target at the input frame
-	- inputImage       : image containing the input feature points.
-	- targetImage      : target image of feature point tracking.
-	- vecInputFeatures : input feature points.
-	- vecOutputFeatures: points of tracking result. Actually it is an output.
-	- vecFeatureInlierIndex: index of features that are inliers of estimated motion.
-	- trackingResult   : (output) estimated box at the target frame.
+	- inputBox         : bounding box of the target on the input frame
+	- inputImage       : image containing the input feature points
+	- vecFeaturePoints : target image of feature point tracking
  Return Values:
 	- bool: true = success / false = failure
 ************************************************************************/
-bool CSCMTTracker::FeatureExtraction(
+bool DepthMTTracker::FeatureExtraction(
 	const hj::Rect inputBox, 
 	const cv::Mat  inputImage, 
 	std::vector<cv::Point2f> &vecFeaturePoints)
@@ -827,7 +805,7 @@ bool CSCMTTracker::FeatureExtraction(
  Return Values:
 	- bool: true = success / false = failure
 ************************************************************************/
-bool CSCMTTracker::FeatureTracking(
+bool DepthMTTracker::FeatureTracking(
 	const hj::Rect inputBox,
 	const cv::Mat  inputImage, 
 	const cv::Mat  targetImage,
@@ -909,7 +887,7 @@ bool CSCMTTracker::FeatureTracking(
  Return Values:
 	- portion of inlier
 ************************************************************************/
-std::vector<cv::Point2f> CSCMTTracker::FindInlierFeatures(
+std::vector<cv::Point2f> DepthMTTracker::FindInlierFeatures(
 	std::vector<cv::Point2f> *vecInputFeatures,
 	std::vector<cv::Point2f> *vecOutputFeatures,
 	std::vector<unsigned char> *vecPointStatus)
@@ -971,7 +949,7 @@ std::vector<cv::Point2f> CSCMTTracker::FindInlierFeatures(
 #define PSN_LOCAL_SEARCH_PORTION_INLIER (false)
 #define PSN_LOCAL_SEARCH_MINIMUM_MOVEMENT (0.1)
 #define PSN_LOCAL_SEARCH_NEIGHBOR_WINDOW_SIZE_RATIO (0.2)
-Rect CSCMTTracker::LocalSearchKLT(
+Rect DepthMTTracker::LocalSearchKLT(
 	Rect preBox,
 	std::vector<cv::Point2f> &preFeatures,
 	std::vector<cv::Point2f> &curFeatures,
@@ -1079,7 +1057,7 @@ Rect CSCMTTracker::LocalSearchKLT(
  Return Values:
 	- double: distance between two boxes
 ************************************************************************/
-double CSCMTTracker::BoxMatchingCost(Rect &box1, Rect &box2)
+double DepthMTTracker::BoxMatchingCost(Rect &box1, Rect &box2)
 {
 	double nominator = (box1.center() - box2.center()).norm_L2();
 	double denominator = (box1.w + box2.w) / 2.0;
@@ -1107,7 +1085,7 @@ double CSCMTTracker::BoxMatchingCost(Rect &box1, Rect &box2)
  Return Values:
 	- tracking confidence
 ************************************************************************/
-double CSCMTTracker::GetTrackingConfidence(Rect &box, std::vector<cv::Point2f> &vecTrackedFeatures)
+double DepthMTTracker::GetTrackingConfidence(Rect &box, std::vector<cv::Point2f> &vecTrackedFeatures)
 {
 	double numFeaturesInBox = 0.0;
 	for (std::vector<cv::Point2f>::iterator featureIter = vecTrackedFeatures.begin();
@@ -1133,26 +1111,26 @@ double CSCMTTracker::GetTrackingConfidence(Rect &box, std::vector<cv::Point2f> &
  Return Values:
 	-
 ************************************************************************/
-void CSCMTTracker::ResultWithTracker(CTracker2D *curTracker, CObject2DInfo &outObjectInfo)
+void DepthMTTracker::ResultWithTrajectories(CTrajectory *curTrajectory, CObjectInfo &outObjectInfo)
 {
-	Rect curBox = curTracker->boxes.back();
-	curBox.x *= (float)stParam_.dImageRescaleRecover;
-	curBox.y *= (float)stParam_.dImageRescaleRecover;
-	curBox.w *= (float)stParam_.dImageRescaleRecover;
-	curBox.h *= (float)stParam_.dImageRescaleRecover;
-	outObjectInfo.prevFeatures = curTracker->featurePoints;
-	outObjectInfo.currFeatures = curTracker->trackedPoints;
-	outObjectInfo.id = curTracker->id;
-	outObjectInfo.box = curBox;
-	outObjectInfo.score = 0;
-	for (int pointIdx = 0; pointIdx < outObjectInfo.prevFeatures.size(); pointIdx++)
-	{
-		outObjectInfo.prevFeatures[pointIdx].x *= (float)stParam_.dImageRescaleRecover;
-		outObjectInfo.prevFeatures[pointIdx].y *= (float)stParam_.dImageRescaleRecover;
-		if (pointIdx >= outObjectInfo.currFeatures.size()) { continue; }
-		outObjectInfo.currFeatures[pointIdx].x *= (float)stParam_.dImageRescaleRecover;
-		outObjectInfo.currFeatures[pointIdx].y *= (float)stParam_.dImageRescaleRecover;
-	}
+	//Rect curBox = curTracker->boxes.back();
+	//curBox.x *= (float)stParam_.dImageRescaleRecover;
+	//curBox.y *= (float)stParam_.dImageRescaleRecover;
+	//curBox.w *= (float)stParam_.dImageRescaleRecover;
+	//curBox.h *= (float)stParam_.dImageRescaleRecover;
+	//outObjectInfo.prevFeatures = curTracker->featurePoints;
+	//outObjectInfo.currFeatures = curTracker->trackedPoints;
+	//outObjectInfo.id = curTracker->id;
+	//outObjectInfo.box = curBox;
+	//outObjectInfo.score = 0;
+	//for (int pointIdx = 0; pointIdx < outObjectInfo.prevFeatures.size(); pointIdx++)
+	//{
+	//	outObjectInfo.prevFeatures[pointIdx].x *= (float)stParam_.dImageRescaleRecover;
+	//	outObjectInfo.prevFeatures[pointIdx].y *= (float)stParam_.dImageRescaleRecover;
+	//	if (pointIdx >= outObjectInfo.currFeatures.size()) { continue; }
+	//	outObjectInfo.currFeatures[pointIdx].x *= (float)stParam_.dImageRescaleRecover;
+	//	outObjectInfo.currFeatures[pointIdx].y *= (float)stParam_.dImageRescaleRecover;
+	//}
 }
 
 
@@ -1165,7 +1143,7 @@ void CSCMTTracker::ResultWithTracker(CTracker2D *curTracker, CObject2DInfo &outO
  Return Values:
 	-
 ************************************************************************/
-void CSCMTTracker::VisualizeResult()
+void DepthMTTracker::VisualizeResult()
 {
 	/* detections */
 	for (int detIdx = 0; detIdx < vecDetectedObjects_.size(); detIdx++)
@@ -1178,9 +1156,9 @@ void CSCMTTracker::VisualizeResult()
 	}
 
 	/* tracklets */
-	for (int objIdx = 0; objIdx < trackingResult_.object2DInfos.size(); objIdx++)
+	for (int objIdx = 0; objIdx < trackingResult_.objectInfos.size(); objIdx++)
 	{
-		CObject2DInfo *curObject = &trackingResult_.object2DInfos[objIdx];
+		CObjectInfo *curObject = &trackingResult_.objectInfos[objIdx];
 
 		// feature points
 		for (int pointIdx = 0; pointIdx < curObject->prevFeatures.size(); pointIdx++)
@@ -1215,7 +1193,7 @@ void CSCMTTracker::VisualizeResult()
 	}
 
 	cv::namedWindow(strVisWindowName_);
-	cv::moveWindow(strVisWindowName_, 10 + nCamID_*640, 10);
+	//cv::moveWindow(strVisWindowName_, 10, 10);
 	cv::imshow(strVisWindowName_, matTrackingResult_);
 	cv::waitKey(1);
 	matTrackingResult_.release();

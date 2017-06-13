@@ -74,15 +74,20 @@
 
 **************************************************************************/
 
+#include <sstream>
+#include <iostream>
 #include "opencv2\highgui\highgui.hpp"
 #include "types.hpp"
-#include "SCMTTracker.h"
-
-std::string strDatasetPath;
-cv::Mat GetFrame(int _fIdx);
+#include "DepthMTTracker.h"
+#include "haanju_string.hpp"
+#include "haanju_fileIO.hpp"
 
 int main(int argc, char** argv)
 {	
+	//---------------------------------------------------
+	// ARGUMENTS PARSING
+	//---------------------------------------------------	
+	int fIdxStart = 0, fIdxEnd = 100;
 	if (argc < 2)
 	{
 		printf("[WARNING] Insufficient number of parameters\n");
@@ -91,30 +96,63 @@ int main(int argc, char** argv)
 		printf("- Index of ending frame\n");
 		return -1;
 	}
-	strDatasetPath = std::string(argv[1]);
-	
-	hj::CSCMTTracker  cMultiTracker2D;
 
-	int fIdxStart = 100;
-	int fIdxStart = 100;
-	for (int fIdx = fIdxStart; fIdx < fIdxStart; fIdx++)
+	// base path of the dataset
+	std::string strDatasetPath = std::string(argv[1]);
+
+	// starting frame index
+	std::istringstream ssFrameIdxStart(argv[2]);
+	if (!(ssFrameIdxStart >> fIdxStart))
 	{
-
+		std::cerr << "Invalid starting frame index: " << argv[2] << std::endl;
+		return -1;
 	}
 
-	if (mainController.Initialize("data/settings.xml"))
+	// ending frame index
+	std::istringstream ssFrameIdxEnd(argv[3]);
+	if (!(ssFrameIdxEnd >> fIdxEnd))
 	{
-		mainController.Run();
-		mainController.Finalize();
+		std::cerr << "Invalid ending frame index: " << argv[3] << std::endl;
+		return -1;
+	}
+	
+
+	//---------------------------------------------------
+	// MAIN SECTION
+	//---------------------------------------------------	
+	std::string strFilePath;
+	cv::Mat matCurFrame;
+	hj::DetectionSet curDetections;
+	hj::DepthMTTracker cTracker;
+
+	// parameters
+	hj::stParamTrack trackParams;
+	trackParams.nImageWidth = 512;
+	trackParams.nImageHeight = 424;
+	trackParams.bVisualize = true;
+	cTracker.Initialize(trackParams);
+
+	for (int fIdx = fIdxStart; fIdx < fIdxEnd; fIdx++)
+	{
+		// get frame image
+		strFilePath = strDatasetPath + "/depths/" + hj::FormattedString("%06d.png", fIdx);
+		matCurFrame = cv::imread(strFilePath, cv::IMREAD_GRAYSCALE);
+		if (matCurFrame.empty())
+		{
+			std::cerr << "No such a file " << strFilePath << std::endl;
+			return -1;
+		}
+
+		// get detections
+		strFilePath = strDatasetPath + "/detections/" + hj::FormattedString("%06d.txt", fIdx);
+		curDetections = hj::ReadDetectionResultWithTxt(strFilePath, hj::DEPTH_HEAD);
+
+		// track
+		cTracker.Track(curDetections, matCurFrame, fIdx);
 	}
 
 	return 0;
 }
 
-cv::Mat GetFrame(int _fIdx)
-{
-	char strImagePath[128];
-	sprintf_s(strImagePath, sizeof(strImagePath),
-		"%s/%06d.png", strDatasetPath.c_str(), _fIdx);
-	return cv::imread(strImagePath, cv::IMREAD_GRAYSCALE);
-}
+//()()
+//('')HAANJU.YOO

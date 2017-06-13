@@ -38,7 +38,7 @@ public:
 	CDetection   detection;
 	Point3D      location;
 	double       height;
-	bool         bMatchedWithTracker;
+	bool         bMatchedWithTracklet;
 	bool         bCoveredByOtherDetection;
 
 	/* back tracking related */
@@ -54,14 +54,14 @@ public:
 /////////////////////////////////////////////////////////////////////////
 // SINGLE TARGET TRACKER
 /////////////////////////////////////////////////////////////////////////
-class CTracker2D
+class CTracklet
 {
 	//----------------------------------------------------------------
 	// METHODS
 	//----------------------------------------------------------------
 public:
-	CTracker2D();
-	~CTracker2D();
+	CTracklet();
+	~CTracklet();
 
 	//----------------------------------------------------------------
 	// VARIABLES
@@ -83,37 +83,52 @@ public:
 	double height;
 };
 
-
-/////////////////////////////////////////////////////////////////////////
-// MULTI-TARGET TRACKER
-/////////////////////////////////////////////////////////////////////////
-class CSCMTTracker
+class CTrajectory
 {
 	//----------------------------------------------------------------
 	// METHODS
 	//----------------------------------------------------------------
 public:
-	CSCMTTracker();
-	~CSCMTTracker();
+	CTrajectory();
+	~CTrajectory();
 
-	void Initialize(int _nCamID, stParamTrack2D &_stParams);
+	//----------------------------------------------------------------
+	// VARIABLES
+	//----------------------------------------------------------------
+public:
+};
+
+
+/////////////////////////////////////////////////////////////////////////
+// MULTI-TARGET TRACKER
+/////////////////////////////////////////////////////////////////////////
+class DepthMTTracker
+{
+	//----------------------------------------------------------------
+	// METHODS
+	//----------------------------------------------------------------
+public:
+	DepthMTTracker();
+	~DepthMTTracker();
+
+	void Initialize(stParamTrack &_stParams);
 	void Finalize(void);
-	CTrack2DResult& Track(
+	CTrackResult& Track(
 		std::vector<CDetection> vecInputDetections, 
 		cv::Mat curFrame, 
 		int frameIdx);
 
 private:
 	/* MAIN OPERATIONS */	
-	void Track2D_GenerateDetectedObjects(
-		const std::vector<CDetection> &vecDetections, 
+	void GenerateDetectedObjects(
+		DetectionSet &vecDetections,
 		std::vector<CDetectedObject> &vecDetectedObjects);
-	void Track2D_BackwardTracking(std::vector<CDetectedObject> &vecDetectedObjects);
-	void Track2D_ForwardTracking(std::deque<CTracker2D*> &queueTrackers);
-	void Track2D_MatchingAndUpdating(
+	void BackwardTracking(std::vector<CDetectedObject> &vecDetectedObjects);
+	void ForwardTracking(std::deque<CTracklet*> &queueTracklets);
+	void MatchingAndUpdating(
 		const std::vector<CDetectedObject> &vecDetectedObjects, 
-		std::deque<CTracker2D*> &queueTrackers);
-	void Track2D_ResultPackaging();
+		std::deque<CTracklet*> &queueTracklets);
+	void ResultPackaging();
 
 	/* TRACKING RELATED */
 	bool FeatureExtraction(
@@ -141,7 +156,7 @@ private:
 	static double GetTrackingConfidence(Rect &box, std::vector<cv::Point2f> &vecTrackedFeatures);	
 
 	/* ETC */
-	void ResultWithTracker(CTracker2D *curTracker, CObject2DInfo &outObjectInfo);
+	void ResultWithTrajectories(CTrajectory *curTrajectory, CObjectInfo &outObjectInfo);
 
 	/* FOR DEBUGGING */
 	void VisualizeResult();
@@ -150,16 +165,13 @@ private:
 	// VARIABLES
 	//----------------------------------------------------------------
 public:
-	bool           bInit_;
-	stParamTrack2D stParam_;
-	unsigned int   nCamID_;
-	unsigned int   nCurrentFrameIdx_;
+	bool         bInit_;
+	stParamTrack stParam_;	
+	unsigned int nCurrentFrameIdx_;
 
-	/* calibration related */
-	//CCalibrationInfo *pCalibrationInfo_;
-	unsigned int     nInputWidth_;
-	unsigned int     nInputHeight_;
-	double           dDefaultBottomZ_;
+	/* calibration related */	
+	unsigned int nInputWidth_;
+	unsigned int nInputHeight_;	
 
 	/* input related */
 	std::vector<CDetectedObject> vecDetectedObjects_;
@@ -169,9 +181,9 @@ public:
 	cv::Mat  matResizedGrayImage_;	
 	
 	/* traker related */
-	unsigned int            nNewTrackerID_;
-	std::list<CTracker2D>   listCTracker2D_;
-	std::deque<CTracker2D*> queueActiveTracker2D_;
+	unsigned int           nNewTrackletID_;
+	std::list<CTracklet>   listCTracklet_;
+	std::deque<CTracklet*> queueActiveTracklet_;
 
 	/* matching related */
 	std::vector<float> arrMatchingCost_;
@@ -181,7 +193,7 @@ public:
 	cv::Mat matFeatureExtractionMask_;
 
 	/* result related */
-	CTrack2DResult trackingResult_;
+	CTrackResult trackingResult_;
 
 	/* visualization related */
 	bool        bVisualizeResult_;

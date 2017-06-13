@@ -296,32 +296,14 @@ public:
 typedef std::vector<CDetection> DetectionSet;
 
 
-class CLidarDetection
-{
-public:
-	CLidarDetection() : center_(Point2D(0.0, 0.0)) {};
-	~CLidarDetection() {};
-
-	void SetPoints(std::vector<Point2D> &_vecPoints) { vecPoints_ = _vecPoints; };
-	void SetCenter(hj::Point2D _center) { center_ = _center; }
-
-	std::vector<Point2D> GetPoints() { return vecPoints_; }
-	hj::Point2D GetCenter() { return center_; }
-private:
-	Point2D center_;
-	std::vector<Point2D> vecPoints_;
-};
-typedef std::vector<CLidarDetection> LidarDetectionSet;
-
-
-class CObject2DInfo
+class CObjectInfo
 {
 	//----------------------------------------------------------------
 	// METHODS
 	//----------------------------------------------------------------
 public:
 	// constructors
-	CObject2DInfo() : id(0), box(0.0, 0.0, 0.0, 0.0), head(0.0, 0.0, 0.0, 0.0), score(0.0) {}
+	CObjectInfo() : id(0), box(0.0, 0.0, 0.0, 0.0), depth(0.0), score(0.0) {}
 
 	//----------------------------------------------------------------
 	// VARIABLES
@@ -329,130 +311,24 @@ public:
 public:
 	unsigned int id;
 	Rect         box;
-	Rect         head;
+	double       depth;
 	double       score;
 	std::vector<cv::Point2f> prevFeatures;
 	std::vector<cv::Point2f> currFeatures;
 };
 
 
-class CObject3DInfo
-{
-	//----------------------------------------------------------------
-	// METHODS
-	//----------------------------------------------------------------
-public:
-	// constructors
-	CObject3DInfo(int numCameras) : id(0)
-	{
-		numCam = numCameras;
-		recentPoint2Ds.resize(numCam);
-		point3DBox.resize(numCam);
-		rectInViews.resize(numCam, Rect(0.0, 0.0, 0.0, 0.0));
-		bVisibleInViews.resize(numCam, false);
-	}
-
-	//----------------------------------------------------------------
-	// VARIABLES
-	//----------------------------------------------------------------
-public:
-	unsigned int id;
-	size_t numCam;
-	std::vector<Point3D> recentPoints;
-	std::vector<Point3D> curDetectionPosition;
-
-	// values for each camera
-	std::vector<std::vector<Point2D>> recentPoint2Ds;
-	std::vector<std::vector<Point2D>> point3DBox;	
-	std::vector<Rect> rectInViews;
-	std::vector<bool> bVisibleInViews;
-};
-
-
-class CObjectLidarInfo
-{
-	//----------------------------------------------------------------
-	// METHODS
-	//----------------------------------------------------------------
-public:
-	// constructors
-	CObjectLidarInfo() : id(0), frameIdx(0) {}
-	CObjectLidarInfo(int _id) : id(_id), frameIdx(0) {}
-
-	//----------------------------------------------------------------
-	// VARIABLES
-	//----------------------------------------------------------------
-public:
-	int id;
-	int frameIdx;
-	//std::vector<Point3D> recentPoints;
-	Point3D location;
-};
-
-
 /////////////////////////////////////////////////////////////////////////
 // RESULTS
 /////////////////////////////////////////////////////////////////////////
-class CLidarScanResult
-{
-public:
-	CLidarScanResult()
-	{
-		Clear();
-	}
-	~CLidarScanResult() {}
-
-	CLidarScanResult& operator=(const CLidarScanResult &a)
-	{ 
-		memcpy(this->arrDistances_, a.arrDistances_, sizeof(std::pair<double, double>)*HJ_LIDAR_RESOLUTION);
-		size_ = a.size();
-		return *this;
-	}
-
-	void   SetDistance(int _pos, double _val) 
-	{
-		arrDistances_[_pos].second = _val; 
-		if (_pos >= size_) { size_ = (size_t)_pos + 1; }
-	}
-	void   SetAngle(int _pos, double _val)
-	{
-		arrDistances_[_pos].first  = _val;
-		if (_pos >= size_) { size_ = (size_t)_pos + 1; }
-	}
-	double GetDistance(int _pos) { return arrDistances_[_pos].second; }
-	double GetAngle(int _pos)    { return arrDistances_[_pos].first; }
-	bool   Clear()
-	{
-		memset(arrDistances_, 0, sizeof(std::pair<double, double>) * HJ_LIDAR_RESOLUTION);
-		size_ = 0;
-		return true;
-	}
-	size_t size() const { return size_; }
-
-private:
-	std::pair<double, double> arrDistances_[HJ_LIDAR_RESOLUTION]; // angle / distance
-	hj::Point2D arrCoordinates_[HJ_LIDAR_RESOLUTION];
-	size_t size_;
-};
-
-
-class CTrackLidarResult
+class CTrackResult
 {
 	//----------------------------------------------------------------
 	// METHODS
 	//----------------------------------------------------------------
 public:
 	// constructors
-	CTrackLidarResult() : frameIdx(0), timeStamp(0) {}
-
-	// operator
-	CTrackLidarResult& operator=(const CTrackLidarResult &a)
-	{ 
-		frameIdx         = a.frameIdx; 
-		timeStamp        = a.timeStamp;
-		objectLidarInfos = a.objectLidarInfos;
-		return *this; 
-	}
+	CTrackResult() : frameIdx(0), timeStamp(0) {}
 
 	//----------------------------------------------------------------
 	// VARIABLES
@@ -460,88 +336,13 @@ public:
 public:	
 	unsigned int frameIdx;
 	unsigned int timeStamp;
-	std::vector<CObjectLidarInfo> objectLidarInfos;
-};
-
-
-// 2D tracking result at each frame
-class CTrack2DResult
-{
-	//----------------------------------------------------------------
-	// METHODS
-	//----------------------------------------------------------------
-public:
-	// constructors
-	CTrack2DResult() : camID(0), frameIdx(0), timeStamp(0) {}
-
-	//----------------------------------------------------------------
-	// VARIABLES
-	//----------------------------------------------------------------
-public:
-	unsigned int camID;
-	unsigned int frameIdx;
-	unsigned int timeStamp;
-	std::vector<CObject2DInfo> object2DInfos;
+	std::vector<CObjectInfo> objectInfos;
 
 	std::vector<Rect> vecDetectionRects;
 	std::vector<Rect> vecTrackerRects;
 	cv::Mat matMatchingCost;
 };
 
-
-// 3D tracking result at each frame
-class CTrack3DResult
-{
-	//----------------------------------------------------------------
-	// METHODS
-	//----------------------------------------------------------------
-public:
-	// constructors
-	CTrack3DResult() : frameIdx(0), timeStamp(0), processingTime(0.0) {}
-
-	//----------------------------------------------------------------
-	// VARIABLES
-	//----------------------------------------------------------------
-public:
-	unsigned int frameIdx;
-	unsigned int timeStamp;
-	double       processingTime;
-	std::vector<CObject3DInfo> object3DInfos;
-};
-
-
-// tracking result
-class CTrackingInfo
-{
-
-};
-
-
-///////////////////////////////////////////////////////////////////////////
-//// CALIBRATION
-///////////////////////////////////////////////////////////////////////////
-//class CCalibrationInfo
-//{
-//	//----------------------------------------------------------------
-//	// METHODS
-//	//----------------------------------------------------------------
-//public:
-//	CCalibrationInfo() {}
-//	~CCalibrationInfo()
-//	{
-//		if (!matProjectionSensitivity.empty()) { matProjectionSensitivity.release(); }
-//		if (!matDistanceFromBoundary.empty())  { matDistanceFromBoundary.release(); }
-//	}
-//
-//	//----------------------------------------------------------------
-//	// VARIABLES
-//	//----------------------------------------------------------------
-//public:
-//	unsigned int nCamIdx;
-//	Etiseo::CameraModel cCamModel;
-//	cv::Mat matProjectionSensitivity;
-//	cv::Mat matDistanceFromBoundary;
-//};
 
 /////////////////////////////////////////////////////////////////////////
 // BUFFER RELATED
@@ -790,106 +591,14 @@ struct stViewInformation
 	std::vector<int> vecCamIDs;
 };
 
-struct stParamSocket
+struct stParamTrack
 {
 	//------------------------------------------------
 	// METHODS
 	//------------------------------------------------
-	stParamSocket()
-		: strIP("192.168.0.13")
-		, nPort(5007)
-	{};
-	~stParamSocket() {};
-
-	//------------------------------------------------
-	// VARIABLES
-	//------------------------------------------------
-	std::string strIP;
-	int nPort;
-};
-
-struct stParamFrameGrabber
-{
-	//------------------------------------------------
-	// METHODS
-	//------------------------------------------------
-	stParamFrameGrabber() 
-		: nCamIndex(0)
-		, bExistFrameRange(false)
-		, bDoRealtimeOperation(false)
-		, nStartFrameIndex(0)
-		, nEndFrameIndex(0)
-		, nInputSource(GRABBING)
-		, strInputDir("") 
-	{};
-	~stParamFrameGrabber() {};
-
-	//------------------------------------------------
-	// VARIABLES
-	//------------------------------------------------
-	int  nCamIndex;
-	bool bExistFrameRange;
-	bool bDoRealtimeOperation;
-	int  nStartFrameIndex;
-	int  nEndFrameIndex;
-	INPUT_SOURCE nInputSource;
-	std::string strInputDir;
-};
-
-struct stParamDetect2D
-{
-	//------------------------------------------------
-	// METHODS
-	//------------------------------------------------
-	stParamDetect2D()
-		: nCamIndex(0)
-		, strDetectorDir("")
-		, strDetectionDir("")
-		//, pCalibrationInfo(NULL)
-		, dImageRescale(1.0)
-		, dImageRescaleRecover(1.0)
-		, nDetectionThreshold(0)
-		, nDetectionType(hj::FULLBODY)
-		, dNMSOverlapRatio_1(0.0)
-		, dNMSOverlapRatio_2(0.0)
-	{};
-	~stParamDetect2D() {};
-
-	//------------------------------------------------
-	// VARIABLES
-	//------------------------------------------------
-	int nCamIndex;
-	stViewInformation stViewInfo;
-	std::string strDetectorDir;
-	std::string strDetectionDir;
-	//CCalibrationInfo *pCalibrationInfo;
-
-	/* speed-up */
-	double dImageRescale;
-	double dImageRescaleRecover;
-
-//	int    nPSN_DET_DETECTOR_TYPE; // 0:Head / 1:Full-body / 2: Full-body from Head
-	//int    nPSN_DET_OPERATION_TYPE; // 0:no openmp - acfDetect / 1:openmp - acfDetect /2:TEXT
-	//int    nPSN_DET_INPUT_TYPE; // 0:ETRI %d_%04d.jpg / 1:PETS2009 View_%03d\\frame_%04d.jpg / 2:VIDEO / 3: %d_%04d.jpg / others : %d_%d.jpg
-	//double nPSN_DET_NMS_OVERLAP_RATIO_1;
-	//double nPSN_DET_NMS_OVERLAP_RATIO_2;
-
-	int nDetectionThreshold;
-	DETECTION_TYPE nDetectionType;
-	double dNMSOverlapRatio_1;
-	double dNMSOverlapRatio_2;
-};
-
-struct stParamTrack2D
-{
-	//------------------------------------------------
-	// METHODS
-	//------------------------------------------------
-	stParamTrack2D()
-		: nCamIndex(0)
-		, nImageWidth(640)
-		, nImageHeight(480)
-		//, pCalibrationInfo(NULL)
+	stParamTrack()		
+		: nImageWidth(0)
+		, nImageHeight(0)		
 		, dImageRescale(1.0)
 		, dImageRescaleRecover(1.0)
 		, dDetectionMinHeight(1400.0)
@@ -907,13 +616,11 @@ struct stParamTrack2D
 		, dMaxHeightDifference(400.0)
 		, bVisualize(false)
 	{};
-	~stParamTrack2D() {};
+	~stParamTrack() {};
 
 	//------------------------------------------------
 	// VARIABLES
 	//------------------------------------------------
-	int nCamIndex;
-	//CCalibrationInfo *pCalibrationInfo;
 	int nImageWidth;
 	int nImageHeight;
 
@@ -942,164 +649,6 @@ struct stParamTrack2D
 
 	/* visualization for debugging */
 	bool   bVisualize;	
-};
-
-struct stParamAssociate3D
-{
-	//------------------------------------------------
-	// METHODS
-	//------------------------------------------------
-	stParamAssociate3D()
-		: nDetectionType(hj::FULLBODY)
-		, bVisualize(false)
-		/* optimization */
-		, nProcWindowSize(10)
-		, nKBestSize(50)
-		, nMaxNumTracksInOptimization(1000)
-		, nMaxNumTracksInUnconfirmedTree(4)
-		, nMaxNumTracksInConfirmedTree(100)
-		, nNumFramesForConfirmation(3)
-		, bDoBranchCut(false)
-		/* reconstruction */
-		, nMinTrackletLength(1)
-		, dMaxTrackletDistance(1000.0)		
-		, bConsiderSensitivity(false)
-		, dMaxSensitivityError(20.0)
-		, dMinTargetProximity(500.0)
-		, dDefaultHeight(1700.0)
-		/* clustering */
-		, dClusteringDistance(500.0)
-		/* linking */
-		, dMinLinkingProbability(1.0e-6)
-		, nMaxTimeJump(5)
-		, dCostRGBMinDistance(0.2)
-		, dCostRGBCoef(100.0)
-		, dCostRGBDecayCoef(0.1)
-		, dCostTrackletLinkingMinDistance(1500.0)
-		, dCostTrackletLinkingCoef(0.1)
-		/* probability */
-		, dMinConstructProbability(1.0e-3)
-		, dFPRate(0.01)
-		, dFNRate(0.2)
-		/* enter/exit */
-		, nEnterPenaltyFreeLength(2)
-		, dBoundaryDistance(1000.0)
-		, dEnterProbMax(1.0e-1)
-		, dEnterProbDecayCoef(1.0e-3)
-		, dExitProbMax(1.0e-2)		
-		, dExitProbDistDecayCoef(1.0e-3)
-		, dExitProbLengthDecayCoef(1.0e-1)
-		, dCostEnterMax(1000.0)
-		, dCostExitMax(1000.0)
-		, nMaxOutpoint(3)
-		/* calibration */
-		, dDetectionError(4.0)
-		, dCalibrationError(500.0)
-		/* dynamic */
-		, dKalmanProcessNoiseSigma(0.1)
-		, dKalmanMeasurementNoiseSigma(0.1)
-		, dKalmanPostErrorCovariance(0.1)
-		, nKalmanConfidenceLevel(1)
-		, dVelocityLearningRate(1.0e-1)
-		, dFrameRate(6.0)
-		, dMaxMovingSpeed(5000.0)
-		, dMinMovingSpeed(100.0)
-		/* appearance */
-		, nImagePatchWidth(20)
-		, nNumRGBHistogramBins(16)
-		/* operation */
-		, nSolverTimeLimit(0)
-		, nSolverMaxIter(0)
-		/* result */
-		, nResultTrajectoryLength(30)
-		, bShowTreeID(false)
-	{		
-	};
-	~stParamAssociate3D() {};
-
-	//------------------------------------------------
-	// VARIABLES
-	//------------------------------------------------
-	stViewInformation  stViewInfo;	
-	//std::vector<hj::CCalibrationInfo*> vecPCalibrationInfo;
-
-	/* detection related */
-	hj::DETECTION_TYPE nDetectionType;
-
-	/* visualization */
-	bool   bVisualize;
-
-	/* optimization */
-	int    nProcWindowSize;
-	int    nKBestSize;
-	int    nMaxNumTracksInOptimization;
-	int    nMaxNumTracksInUnconfirmedTree;
-	int    nMaxNumTracksInConfirmedTree;
-	int    nNumFramesForConfirmation;
-	bool   bDoBranchCut;
-
-	/* reconstruction */
-	int    nMinTrackletLength;
-	double dMaxTrackletDistance;	
-	bool   bConsiderSensitivity;
-	double dMaxSensitivityError;
-	double dMinTargetProximity;
-	double dDefaultHeight;
-
-	/* clustering */
-	double dClusteringDistance;
-
-	/* linking */
-	double dMinLinkingProbability;
-	int    nMaxTimeJump;
-	double dCostRGBMinDistance;
-	double dCostRGBCoef;
-	double dCostRGBDecayCoef;
-	double dCostTrackletLinkingMinDistance;
-	double dCostTrackletLinkingCoef;
-
-	/* probability */
-	double dMinConstructProbability;
-	double dFPRate;
-	double dFNRate;
-
-	/* enter/exit */
-	int    nEnterPenaltyFreeLength;
-	double dBoundaryDistance;
-	double dEnterProbMax;
-	double dEnterProbDecayCoef;
-	double dExitProbMax;	
-	double dExitProbDistDecayCoef;
-	double dExitProbLengthDecayCoef;
-	double dCostEnterMax;
-	double dCostExitMax;
-	int    nMaxOutpoint;
-	
-	/* calibration */
-	double dDetectionError;
-	double dCalibrationError;
-
-	/* dynamic */
-	double dKalmanProcessNoiseSigma;
-	double dKalmanMeasurementNoiseSigma;
-	double dKalmanPostErrorCovariance;
-	int    nKalmanConfidenceLevel;
-	double dVelocityLearningRate;
-	double dFrameRate;
-	double dMaxMovingSpeed;
-	double dMinMovingSpeed;
-	
-	/* appearance */
-	int    nImagePatchWidth;
-	int    nNumRGBHistogramBins;
-
-	/* operation */
-	int    nSolverTimeLimit;
-	int    nSolverMaxIter;	
-
-	/* result */
-	int    nResultTrajectoryLength;
-	bool   bShowTreeID;
 };
 
 struct stParamEvaluator

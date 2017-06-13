@@ -148,12 +148,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Xml Include="data\settings.xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="DataManager.h" />
-    <ClInclude Include="Evaluator.h" />
-    <ClInclude Include="FrameGrabber.h" />
     <ClInclude Include="haanju_3D.hpp" />
     <ClInclude Include="haanju_fileIO.hpp" />
     <ClInclude Include="haanju_math.hpp" />
@@ -162,19 +156,13 @@
     <ClInclude Include="haanju_string.hpp" />
     <ClInclude Include="haanju_visualize.hpp" />
     <ClInclude Include="HungarianMethod.h" />
-    <ClInclude Include="MainController.h" />
     <ClInclude Include="Point3DSmoother.h" />
-    <ClInclude Include="pugiconfig.hpp" />
-    <ClInclude Include="pugixml.hpp" />
-    <ClInclude Include="SCMTTracker.h" />
+    <ClInclude Include="DepthMTTracker.h" />
     <ClInclude Include="SGSmoother.h" />
     <ClInclude Include="types.hpp" />
     <ClInclude Include="types_3D.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="DataManager.cpp" />
-    <ClCompile Include="Evaluator.cpp" />
-    <ClCompile Include="FrameGrabber.cpp" />
     <ClCompile Include="haanju_3D.cpp" />
     <ClCompile Include="haanju_fileIO.cpp" />
     <ClCompile Include="haanju_math.cpp" />
@@ -184,10 +172,8 @@
     <ClCompile Include="hannju_visualize.cpp" />
     <ClCompile Include="HungarianMethod.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="MainController.cpp" />
     <ClCompile Include="Point3DSmoother.cpp" />
-    <ClCompile Include="pugixml.cpp" />
-    <ClCompile Include="SCMTTracker.cpp" />
+    <ClCompile Include="DepthMTTracker.cpp" />
     <ClCompile Include="SGSmoother.cpp" />
     <ClCompile Include="types_3D.cpp" />
   </ItemGroup>

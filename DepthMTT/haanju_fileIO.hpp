@@ -41,8 +41,6 @@ bool GetFileList(const std::string _dirPath, const std::string _fileFormat, std:
 void printLog(const char *filename, std::string strLog);
 std::string MakeTrackIDList(TrackSet *tracks);
 std::vector<CDetection> ReadDetectionResultWithTxt(std::string _strFilePath, DETECTION_TYPE _detectionType = FULLBODY);
-std::vector<CTrack2DResult> Read2DTrackResultWithTxt(std::string strDatasetPath, unsigned int frameIdx, std::vector<unsigned int> vecCamIDs);
-CTrack2DResult Read2DTrackResultWithTxt(std::string strDataPath, unsigned int camID, unsigned int frameIdx);
 
 }
 
