@@ -217,7 +217,7 @@ CTrackResult& DepthMTTracker::Track(
 	matGrayImage_ = curFrame;
 	cImageBuffer_.insert_resize(matGrayImage_, sizeBufferImage_);
 	if (!matTrackingResult_.empty()) { matTrackingResult_.release(); }
-	matTrackingResult_ = curFrame.clone();
+	cv::cvtColor(curFrame, matTrackingResult_, cv::COLOR_GRAY2BGR);
 
 	/* input pre-processing */
 	GenerateDetectedObjects(vecInputDetections, vecDetectedObjects_);
@@ -267,11 +267,11 @@ void DepthMTTracker::GenerateDetectedObjects(
 		//	*pCalibrationInfo_,
 		//	dDefaultBottomZ_, 
 		//	&estimatedLocation);
-		if (stParam_.dDetectionMaxHeight < estimatedHeight 
-			|| stParam_.dDetectionMinHeight > estimatedHeight)
-		{ 
-			continue; 
-		}
+		//if (stParam_.dDetectionMaxHeight < estimatedHeight 
+		//	|| stParam_.dDetectionMinHeight > estimatedHeight)
+		//{ 
+		//	continue; 
+		//}
 
 		/* generate detection information */
 		CDetectedObject curDetection;
@@ -725,7 +725,7 @@ void DepthMTTracker::ResultPackaging()
 	for (size_t trackerIdx = 0; trackerIdx < queueActiveTracklet_.size(); trackerIdx++)
 	{
 		// TODO: modify the input arguments of the function at the below
-		//ResultWithTrajectories(queueActiveTracklet_[trackerIdx], objectInfo);
+		ResultWithTrajectories(queueActiveTracklet_[trackerIdx], objectInfo);
 		trackingResult_.objectInfos.push_back(objectInfo);
 	}
 
@@ -1111,26 +1111,26 @@ double DepthMTTracker::GetTrackingConfidence(Rect &box, std::vector<cv::Point2f>
  Return Values:
 	-
 ************************************************************************/
-void DepthMTTracker::ResultWithTrajectories(CTrajectory *curTrajectory, CObjectInfo &outObjectInfo)
+void DepthMTTracker::ResultWithTrajectories(CTracklet *curTrajectory, CObjectInfo &outObjectInfo)
 {
-	//Rect curBox = curTracker->boxes.back();
-	//curBox.x *= (float)stParam_.dImageRescaleRecover;
-	//curBox.y *= (float)stParam_.dImageRescaleRecover;
-	//curBox.w *= (float)stParam_.dImageRescaleRecover;
-	//curBox.h *= (float)stParam_.dImageRescaleRecover;
-	//outObjectInfo.prevFeatures = curTracker->featurePoints;
-	//outObjectInfo.currFeatures = curTracker->trackedPoints;
-	//outObjectInfo.id = curTracker->id;
-	//outObjectInfo.box = curBox;
-	//outObjectInfo.score = 0;
-	//for (int pointIdx = 0; pointIdx < outObjectInfo.prevFeatures.size(); pointIdx++)
-	//{
-	//	outObjectInfo.prevFeatures[pointIdx].x *= (float)stParam_.dImageRescaleRecover;
-	//	outObjectInfo.prevFeatures[pointIdx].y *= (float)stParam_.dImageRescaleRecover;
-	//	if (pointIdx >= outObjectInfo.currFeatures.size()) { continue; }
-	//	outObjectInfo.currFeatures[pointIdx].x *= (float)stParam_.dImageRescaleRecover;
-	//	outObjectInfo.currFeatures[pointIdx].y *= (float)stParam_.dImageRescaleRecover;
-	//}
+	Rect curBox = curTrajectory->boxes.back();
+	curBox.x *= (float)stParam_.dImageRescaleRecover;
+	curBox.y *= (float)stParam_.dImageRescaleRecover;
+	curBox.w *= (float)stParam_.dImageRescaleRecover;
+	curBox.h *= (float)stParam_.dImageRescaleRecover;
+	outObjectInfo.prevFeatures = curTrajectory->featurePoints;
+	outObjectInfo.currFeatures = curTrajectory->trackedPoints;
+	outObjectInfo.id = curTrajectory->id;
+	outObjectInfo.box = curBox;
+	outObjectInfo.score = 0;
+	for (int pointIdx = 0; pointIdx < outObjectInfo.prevFeatures.size(); pointIdx++)
+	{
+		outObjectInfo.prevFeatures[pointIdx].x *= (float)stParam_.dImageRescaleRecover;
+		outObjectInfo.prevFeatures[pointIdx].y *= (float)stParam_.dImageRescaleRecover;
+		if (pointIdx >= outObjectInfo.currFeatures.size()) { continue; }
+		outObjectInfo.currFeatures[pointIdx].x *= (float)stParam_.dImageRescaleRecover;
+		outObjectInfo.currFeatures[pointIdx].y *= (float)stParam_.dImageRescaleRecover;
+	}
 }
 
 

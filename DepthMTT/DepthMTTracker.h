@@ -114,7 +114,7 @@ public:
 	void Initialize(stParamTrack &_stParams);
 	void Finalize(void);
 	CTrackResult& Track(
-		std::vector<CDetection> vecInputDetections, 
+		DetectionSet vecInputDetections,
 		cv::Mat curFrame, 
 		int frameIdx);
 
@@ -156,7 +156,7 @@ private:
 	static double GetTrackingConfidence(Rect &box, std::vector<cv::Point2f> &vecTrackedFeatures);	
 
 	/* ETC */
-	void ResultWithTrajectories(CTrajectory *curTrajectory, CObjectInfo &outObjectInfo);
+	void ResultWithTrajectories(CTracklet *curTrajectory, CObjectInfo &outObjectInfo);
 
 	/* FOR DEBUGGING */
 	void VisualizeResult();

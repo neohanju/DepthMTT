@@ -88,7 +88,7 @@ int main(int argc, char** argv)
 	// ARGUMENTS PARSING
 	//---------------------------------------------------	
 	int fIdxStart = 0, fIdxEnd = 100;
-	if (argc < 2)
+	if (argc < 4)
 	{
 		printf("[WARNING] Insufficient number of parameters\n");
 		printf("- Dataset path\n");
@@ -135,7 +135,7 @@ int main(int argc, char** argv)
 	for (int fIdx = fIdxStart; fIdx < fIdxEnd; fIdx++)
 	{
 		// get frame image
-		strFilePath = strDatasetPath + "/depths/" + hj::FormattedString("%06d.png", fIdx);
+		strFilePath = strDatasetPath + "/" + hj::FormattedString("%06d.png", fIdx);
 		matCurFrame = cv::imread(strFilePath, cv::IMREAD_GRAYSCALE);
 		if (matCurFrame.empty())
 		{
@@ -144,7 +144,7 @@ int main(int argc, char** argv)
 		}
 
 		// get detections
-		strFilePath = strDatasetPath + "/detections/" + hj::FormattedString("%06d.txt", fIdx);
+		strFilePath = strDatasetPath + "/" + hj::FormattedString("%06d.txt", fIdx);
 		curDetections = hj::ReadDetectionResultWithTxt(strFilePath, hj::DEPTH_HEAD);
 
 		// track
