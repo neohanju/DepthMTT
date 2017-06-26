@@ -376,7 +376,7 @@ void DepthMTTracker::BackwardTracking(std::vector<CDetectedObject> &vecDetectedO
  Return Values:
 	- none
 ************************************************************************/
-void DepthMTTracker::ForwardTracking(std::deque<CTracklet*> &queueTrackers)
+void DepthMTTracker::ForwardTracking(TrackletPtQueue &queueTrackers)
 {
 	if (2 > cImageBuffer_.num_elements())
 	{ 
@@ -426,7 +426,7 @@ void DepthMTTracker::ForwardTracking(std::deque<CTracklet*> &queueTrackers)
 ************************************************************************/
 void DepthMTTracker::MatchingAndUpdating(
 	const std::vector<CDetectedObject> &vecDetectedObjects,
-	std::deque<CTracklet*> &queueTrackers)
+	TrackletPtQueue &queueTrackers)
 {
 	/////////////////////////////////////////////////////////////////////////////
 	// CALCULATE MATCHING COSTS
@@ -702,6 +702,23 @@ void DepthMTTracker::MatchingAndUpdating(
 	//		cost_pos++;
 	//	}
 	//}
+}
+
+
+/************************************************************************
+ Method Name: TrackletMatching
+ Description:
+	- 
+ Input Arguments:
+	- none
+ Return Values:
+	- none
+************************************************************************/
+void DepthMTTracker::TrackletMatching(
+	const TrackletPtQueue &queuePreviousTracklets,
+	const TrackletPtQueue &queueNewTracklets)
+{
+
 }
 
 

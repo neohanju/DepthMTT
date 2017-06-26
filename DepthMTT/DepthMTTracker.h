@@ -48,8 +48,8 @@ public:
 	/* appearance related */
 	cv::Mat patchGray;
 	cv::Mat patchRGB;
-	
 };
+
 
 /////////////////////////////////////////////////////////////////////////
 // SINGLE TARGET TRACKER
@@ -82,6 +82,8 @@ public:
 	hj::Rect estimatedBox;
 	double height;
 };
+typedef std::deque<CTracklet*> TrackletPtQueue;
+
 
 class CTrajectory
 {
@@ -97,6 +99,7 @@ public:
 	//----------------------------------------------------------------
 public:
 };
+typedef std::deque<CTrajectory> TrajectoryVector;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -124,10 +127,13 @@ private:
 		DetectionSet &vecDetections,
 		std::vector<CDetectedObject> &vecDetectedObjects);
 	void BackwardTracking(std::vector<CDetectedObject> &vecDetectedObjects);
-	void ForwardTracking(std::deque<CTracklet*> &queueTracklets);
+	void ForwardTracking(TrackletPtQueue &queueTracklets);
 	void MatchingAndUpdating(
 		const std::vector<CDetectedObject> &vecDetectedObjects, 
-		std::deque<CTracklet*> &queueTracklets);
+		TrackletPtQueue &queueTracklets);
+	void TrackletMatching(
+		const TrackletPtQueue &queuePreviousTracklets,
+		const TrackletPtQueue &queueNewTracklets);
 	void ResultPackaging();
 
 	/* TRACKING RELATED */
@@ -153,7 +159,7 @@ private:
 		std::vector<cv::Point2f> &curFeatures, 
 		std::vector<int> &inlierFeatureIndex);	
 	static double BoxMatchingCost(Rect &box1, Rect &box2);
-	static double GetTrackingConfidence(Rect &box, std::vector<cv::Point2f> &vecTrackedFeatures);	
+	static double GetTrackingConfidence(Rect &box, std::vector<cv::Point2f> &vecTrackedFeatures);
 
 	/* ETC */
 	void ResultWithTrajectories(CTracklet *curTrajectory, CObjectInfo &outObjectInfo);
@@ -183,7 +189,9 @@ public:
 	/* traker related */
 	unsigned int           nNewTrackletID_;
 	std::list<CTracklet>   listCTracklet_;
-	std::deque<CTracklet*> queueActiveTracklet_;
+	TrackletPtQueue        queueActiveTracklet_;
+	TrackletPtQueue        queuePrevTracklet_;
+	TrackletPtQueue        queueNewTracklet_;
 
 	/* matching related */
 	std::vector<float> arrMatchingCost_;
