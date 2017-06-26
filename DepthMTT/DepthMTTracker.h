@@ -187,14 +187,14 @@ public:
 	cv::Mat  matResizedGrayImage_;	
 	
 	/* traker related */
-	unsigned int           nNewTrackletID_;
-	std::list<CTracklet>   listCTracklet_;
-	TrackletPtQueue        queueActiveTracklet_;
-	TrackletPtQueue        queuePrevTracklet_;
-	TrackletPtQueue        queueNewTracklet_;
+	unsigned int         nNewTrackletID_;
+	std::list<CTracklet> listCTracklet_;
+	TrackletPtQueue      queueActiveTracklets_;
+	TrackletPtQueue      queuePendedTracklets_;	
 
 	/* matching related */
-	std::vector<float> arrMatchingCost_;
+	std::vector<float> arrTrackletToDetectionMatchingCost_;
+	std::vector<float> arrInterTrackletMatchingCost_;
 
 	/* feature tracking related */
 	cv::Ptr<cv::AgastFeatureDetector> featureDetector_;

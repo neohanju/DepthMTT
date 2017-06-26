@@ -9,7 +9,7 @@
 
 // TEMPORAL
 #include "haanju_3D.hpp"
-
+#define MAX_PENDING_TIME (30)
 
 namespace hj
 {
@@ -116,7 +116,7 @@ void DepthMTTracker::Initialize(stParamTrack &_stParams)
 	// tracker related
 	nNewTrackletID_ = 0;
 	listCTracklet_.clear();
-	queueActiveTracklet_.clear();
+	queueActiveTracklets_.clear();
 
 	// input related
 	sizeBufferImage_ = cv::Size(
@@ -171,7 +171,7 @@ void DepthMTTracker::Finalize(void)
 		(*trackerIter).trackedPoints.clear();
 	}
 	listCTracklet_.clear();
-	queueActiveTracklet_.clear();
+	queueActiveTracklets_.clear();
 
 	/* input related */
 	cImageBuffer_.clear();
@@ -179,7 +179,7 @@ void DepthMTTracker::Finalize(void)
 	if (!matTrackingResult_.empty()) { matTrackingResult_.release(); }
 
 	/* matching related */
-	arrMatchingCost_.clear();
+	arrTrackletToDetectionMatchingCost_.clear();
 
 	/* result related */
 	trackingResult_.objectInfos.clear();
@@ -224,8 +224,8 @@ CTrackResult& DepthMTTracker::Track(
 
 	/* bi-directional tracking */
 	BackwardTracking(vecDetectedObjects_);
-	ForwardTracking(queueActiveTracklet_);	
-	MatchingAndUpdating(vecDetectedObjects_, queueActiveTracklet_);
+	ForwardTracking(queueActiveTracklets_);	
+	MatchingAndUpdating(vecDetectedObjects_, queueActiveTracklets_);
 
 	/* result packaging */
 	ResultPackaging();
@@ -433,9 +433,9 @@ void DepthMTTracker::MatchingAndUpdating(
 	/////////////////////////////////////////////////////////////////////////////
 
 	// matching cost matrix: default score is an infinite
-	arrMatchingCost_.clear();
-	arrMatchingCost_.resize(vecDetectedObjects.size() * queueTrackers.size(), std::numeric_limits<float>::infinity());
-	//std::vector<float> arrMatchingCost_(vecDetectedObjects.size() * queueTrackers.size(), std::numeric_limits<float>::infinity());
+	arrTrackletToDetectionMatchingCost_.clear();
+	arrTrackletToDetectionMatchingCost_.resize(vecDetectedObjects.size() * queueTrackers.size(), std::numeric_limits<float>::infinity());
+	//std::vector<float> arrTrackletToDetectionMatchingCost_(vecDetectedObjects.size() * queueTrackers.size(), std::numeric_limits<float>::infinity());
 
 	// to determine occlusion
 	std::vector<std::deque<int>> featuresInDetectionBox(vecDetectedObjects.size());
@@ -446,7 +446,6 @@ void DepthMTTracker::MatchingAndUpdating(
 	for (size_t trackIdx = 0; trackIdx < queueTrackers.size(); trackIdx++)
 	{
 		CTracklet *curTracker = queueTrackers[trackIdx];
-
 
 		for (size_t detectIdx = 0, costPos = trackIdx; 
 			detectIdx < vecDetectedObjects.size(); 
@@ -498,7 +497,7 @@ void DepthMTTracker::MatchingAndUpdating(
 			if (std::numeric_limits<double>::infinity() == boxCost) { continue; }
 			boxCost /= (double)lengthForCompare;
 
-			arrMatchingCost_[costPos] = (float)boxCost;
+			arrTrackletToDetectionMatchingCost_[costPos] = (float)boxCost;
 		}
 	}
 
@@ -555,7 +554,7 @@ void DepthMTTracker::MatchingAndUpdating(
 		// case 3: more than one trackers are related and there is no dominant tracker
 		for (size_t infCostPos = costPos; infCostPos < costPos + queueTrackers.size(); infCostPos++)
 		{
-			arrMatchingCost_[infCostPos] = std::numeric_limits<float>::infinity();
+			arrTrackletToDetectionMatchingCost_[infCostPos] = std::numeric_limits<float>::infinity();
 		}
 	}
 
@@ -566,16 +565,16 @@ void DepthMTTracker::MatchingAndUpdating(
 	// To ensure a proper operation of our Hungarian implementation, we convert infinite to the finite value
 	// that is little bit (=100.0f) greater than the maximum finite cost in the original cost function.
 	float maxCost = -1000.0f;
-	for (int costIdx = 0; costIdx < arrMatchingCost_.size(); costIdx++)
+	for (int costIdx = 0; costIdx < arrTrackletToDetectionMatchingCost_.size(); costIdx++)
 	{
-		if (!_finitef(arrMatchingCost_[costIdx])) { continue; }
-		if (maxCost < arrMatchingCost_[costIdx]) { maxCost = arrMatchingCost_[costIdx]; }
+		if (!_finitef(arrTrackletToDetectionMatchingCost_[costIdx])) { continue; }
+		if (maxCost < arrTrackletToDetectionMatchingCost_[costIdx]) { maxCost = arrTrackletToDetectionMatchingCost_[costIdx]; }
 	}
 	maxCost = maxCost + 100.0f;
-	for (int costIdx = 0; costIdx < arrMatchingCost_.size(); costIdx++)
+	for (int costIdx = 0; costIdx < arrTrackletToDetectionMatchingCost_.size(); costIdx++)
 	{
-		if (_finitef(arrMatchingCost_[costIdx])) { continue; }
-		arrMatchingCost_[costIdx] = maxCost;
+		if (_finitef(arrTrackletToDetectionMatchingCost_[costIdx])) { continue; }
+		arrTrackletToDetectionMatchingCost_[costIdx] = maxCost;
 	}
 
 	/////////////////////////////////////////////////////////////////////////////
@@ -584,13 +583,13 @@ void DepthMTTracker::MatchingAndUpdating(
 	trackingResult_.objectInfos.clear();
 	size_t numDetection = this->vecDetectedObjects_.size();
 	CHungarianMethod cHungarianMatcher;
-	cHungarianMatcher.Initialize(arrMatchingCost_, (unsigned int)numDetection, (unsigned int)this->queueActiveTracklet_.size());
+	cHungarianMatcher.Initialize(arrTrackletToDetectionMatchingCost_, (unsigned int)numDetection, (unsigned int)this->queueActiveTracklets_.size());
 	stMatchInfo *curMatchInfo = cHungarianMatcher.Match();
 	for (size_t matchIdx = 0; matchIdx < curMatchInfo->rows.size(); matchIdx++)
 	{
 		if (maxCost == curMatchInfo->matchCosts[matchIdx]) { continue; }
 		CDetectedObject *curDetection = &this->vecDetectedObjects_[curMatchInfo->rows[matchIdx]];
-		CTracklet *curTracker = this->queueActiveTracklet_[curMatchInfo->cols[matchIdx]];
+		CTracklet *curTracker = this->queueActiveTracklets_[curMatchInfo->cols[matchIdx]];
 
 		//---------------------------------------------------
 		// MATCHING VALIDATION
@@ -634,6 +633,7 @@ void DepthMTTracker::MatchingAndUpdating(
 	/////////////////////////////////////////////////////////////////////////////
 	// TRACKER GENERATION
 	/////////////////////////////////////////////////////////////////////////////
+	TrackletPtQueue newTracklets;
 	for (std::vector<CDetectedObject>::iterator detectionIter = this->vecDetectedObjects_.begin();
 		detectionIter != this->vecDetectedObjects_.end();
 		detectionIter++)
@@ -656,7 +656,7 @@ void DepthMTTracker::MatchingAndUpdating(
 
 		// generate tracklet instance
 		this->listCTracklet_.push_back(newTracker);
-		//queueNewActiveTrackers.push_back(&this->listCTracklet_.back());
+		newTracklets.push_back(&this->listCTracklet_.back());		
 
 		////---------------------------------------------------
 		//// RESULT PACKAGING
@@ -669,25 +669,82 @@ void DepthMTTracker::MatchingAndUpdating(
 	/////////////////////////////////////////////////////////////////////////////
 	// TRACKER TERMINATION
 	/////////////////////////////////////////////////////////////////////////////
-	std::deque<CTracklet*> queueNewActiveTrackers;
+	TrackletPtQueue newActiveTracklets;
+	TrackletPtQueue newPendedTracklets;
 	for (std::list<CTracklet>::iterator trackerIter = listCTracklet_.begin();
 		trackerIter != listCTracklet_.end();
 		/*trackerIter++*/)
 	{
-		if ((*trackerIter).timeLastUpdate == nCurrentFrameIdx_)
+		if ((*trackerIter).timeLastUpdate + MAX_PENDING_TIME < nCurrentFrameIdx_)
 		{
-			// keep
-			queueNewActiveTrackers.push_back(&(*trackerIter));
-			trackerIter++;
+			// termination
+			(*trackerIter).boxes.clear();
+			(*trackerIter).featurePoints.clear();
+			(*trackerIter).trackedPoints.clear();
+			trackerIter = this->listCTracklet_.erase(trackerIter);
 			continue;
 		}
-		// termination
-		(*trackerIter).boxes.clear();
-		(*trackerIter).featurePoints.clear();
-		(*trackerIter).trackedPoints.clear();
-		trackerIter = this->listCTracklet_.erase(trackerIter);
+		// keep
+		if ((*trackerIter).timeLastUpdate == nCurrentFrameIdx_)			
+			newActiveTracklets.push_back(&(*trackerIter));			
+		else
+			newPendedTracklets.push_back(&(*trackerIter));
+
+		trackerIter++;		
 	}
-	queueActiveTracklet_ = queueNewActiveTrackers;
+	queueActiveTracklets_ = newActiveTracklets;
+	queuePendedTracklets_ = newPendedTracklets;
+
+	/////////////////////////////////////////////////////////////////////////////
+	// TRACKLET ASSOCIATION
+	/////////////////////////////////////////////////////////////////////////////
+
+
+	//---------------------------------------------------
+	// COST CALCULATION
+	//---------------------------------------------------
+	arrInterTrackletMatchingCost_.clear();
+	arrInterTrackletMatchingCost_.resize(
+		queuePendedTracklets_.size() * queueActiveTracklets_.size(), 
+		std::numeric_limits<float>::infinity());
+	for (size_t pendIdx = 0; pendIdx < queuePendedTracklets_.size(); pendIdx++)
+	{
+		for (size_t newIdx = 0, costPos = pendIdx; 
+			newIdx < newTracklets.size(); 
+			newIdx++, costPos += queuePendedTracklets_.size())
+		{			
+			float curCost = 0.0f;
+
+			// TODO: translation + depth distance
+			float costTranslation = 0.0f;
+			float costDepthDistance = 0.0f;
+
+			// TODO: missing penalty
+			// TODO: motion prior
+			// 
+
+			arrInterTrackletMatchingCost_[costPos] = curCost;
+		}
+	}
+
+	// handling infinite in the cost array
+	float maxCost = -1000.0f;
+	for (int costIdx = 0; costIdx < arrInterTrackletMatchingCost_.size(); costIdx++)
+	{
+		if (!_finitef(arrInterTrackletMatchingCost_[costIdx])) { continue; }
+		if (maxCost < arrInterTrackletMatchingCost_[costIdx]) { maxCost = arrInterTrackletMatchingCost_[costIdx]; }
+	}
+	maxCost = maxCost + 100.0f;
+	for (int costIdx = 0; costIdx < arrInterTrackletMatchingCost_.size(); costIdx++)
+	{
+		if (_finitef(arrInterTrackletMatchingCost_[costIdx])) { continue; }
+		arrInterTrackletMatchingCost_[costIdx] = maxCost;
+	}
+
+	//---------------------------------------------------
+	// MATCHING
+	//---------------------------------------------------
+	cHungarianMatcher.Initialize(arrTrackletToDetectionMatchingCost_, (unsigned int)newTracklets.size(), (unsigned int)this->queuePendedTracklets_.size());
 
 	//// matching cost
 	//int cost_pos = 0;
@@ -698,7 +755,7 @@ void DepthMTTracker::MatchingAndUpdating(
 	//{
 	//	for (int trackIdx = 0; trackIdx < trackingResult_.vecTrackerRects.size(); trackIdx++)
 	//	{
-	//		this->trackingResult_.matMatchingCost.at<float>(detectionIdx, trackIdx) = arrMatchingCost_[cost_pos];
+	//		this->trackingResult_.matMatchingCost.at<float>(detectionIdx, trackIdx) = arrTrackletToDetectionMatchingCost_[cost_pos];
 	//		cost_pos++;
 	//	}
 	//}
@@ -739,10 +796,10 @@ void DepthMTTracker::ResultPackaging()
 	trackingResult_.frameIdx  = nCurrentFrameIdx_;
 	trackingResult_.timeStamp = (unsigned int)timePackaging;
 	trackingResult_.objectInfos.clear();	
-	for (size_t trackerIdx = 0; trackerIdx < queueActiveTracklet_.size(); trackerIdx++)
+	for (size_t trackerIdx = 0; trackerIdx < queueActiveTracklets_.size(); trackerIdx++)
 	{
 		// TODO: modify the input arguments of the function at the below
-		ResultWithTrajectories(queueActiveTracklet_[trackerIdx], objectInfo);
+		ResultWithTrajectories(queueActiveTracklets_[trackerIdx], objectInfo);
 		trackingResult_.objectInfos.push_back(objectInfo);
 	}
 
@@ -754,7 +811,7 @@ void DepthMTTracker::ResultPackaging()
 	{
 		for (int trackIdx = 0; trackIdx < trackingResult_.vecTrackerRects.size(); trackIdx++)
 		{
-			this->trackingResult_.matMatchingCost.at<float>(detectionIdx, trackIdx) = arrMatchingCost_[cost_pos];
+			this->trackingResult_.matMatchingCost.at<float>(detectionIdx, trackIdx) = arrTrackletToDetectionMatchingCost_[cost_pos];
 			cost_pos++;
 		}
 	}
