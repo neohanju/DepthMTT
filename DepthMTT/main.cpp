@@ -131,6 +131,7 @@ int main(int argc, char** argv)
 	trackParams.nImageHeight = 424;
 	trackParams.bVisualize = true;
 	cTracker.Initialize(trackParams);
+	cTracker.SetRecord(strDatasetPath);
 
 	for (int fIdx = fIdxStart; fIdx < fIdxEnd; fIdx++)
 	{

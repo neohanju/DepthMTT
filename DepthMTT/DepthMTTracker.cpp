@@ -166,6 +166,10 @@ void DepthMTTracker::Initialize(stParamTrack &_stParams)
 	// TEMPORAL
 	bFirstDraw_ = true;
 
+	// record
+	bRecord_ = false;
+	bVideoWriterInit_ = false;
+
 	// initialization flag
 	bInit_ = true;
 }
@@ -205,8 +209,55 @@ void DepthMTTracker::Finalize(void)
 	/* visualize related */
 	if (bVisualizeResult_) { cv::destroyWindow(strVisWindowName_); }
 
+	// record
+	if (bRecord_)
+	{
+		cvReleaseVideoWriter(&this->videoWriter_);
+	}
+
 	/* initialization flag */
 	bInit_ = false;
+}
+
+
+/************************************************************************
+ Method Name: SetRecord
+ Description:
+	- terminate the class with memory clean up
+ Input Arguments:
+	- none
+ Return Values:
+	- none
+************************************************************************/
+void DepthMTTracker::SetRecord(const std::string _strRecordPath)
+{
+	bRecord_ = true;
+	strRecordPath_ = _strRecordPath;
+
+	if (bRecord_) {
+		// get time
+		time_t curTimer = time(NULL);
+		struct tm timeStruct;
+		localtime_s(&timeStruct, &curTimer);
+
+		// make file name
+		char resultOutputFileName[256];
+		sprintf_s(resultOutputFileName, "%s_result_%02d%02d%02d_%02d%02d%02d.avi",
+			strRecordPath_.c_str(),
+			timeStruct.tm_year + 1900,
+			timeStruct.tm_mon + 1,
+			timeStruct.tm_mday,
+			timeStruct.tm_hour,
+			timeStruct.tm_min,
+			timeStruct.tm_sec);
+
+		// init video writer
+		CvSize imgSize;
+		imgSize.width = stParam_.nImageWidth;
+		imgSize.height = stParam_.nImageHeight;
+		videoWriter_ = cvCreateVideoWriter(resultOutputFileName, CV_FOURCC('M', 'J', 'P', 'G'), 15, imgSize, 1);
+		bVideoWriterInit_ = true;
+	}
 }
 
 
@@ -685,11 +736,6 @@ void DepthMTTracker::MatchingAndUpdating(
 ************************************************************************/
 void DepthMTTracker::ManagingTrajectories(const TrackletPtQueue &_queueActiveTracklets)
 {
-	if (this->nCurrentFrameIdx_ == 272)
-	{
-		int a = 0;
-	}
-
 	// trajectory update
 	TrackletPtQueue newTracklets;
 	for (size_t i = 0; i < _queueActiveTracklets.size(); i++)
@@ -1397,6 +1443,16 @@ void DepthMTTracker::VisualizeResult()
 
 		if (curTrajectory->timeEnd != this->nCurrentFrameIdx_) { continue; }
 		hj::DrawBoxWithID(matTrackingResult_, curTrajectory->boxes.back(), curTrajectory->id, 0, 0, &vecColors_);
+	}
+
+	//---------------------------------------------------
+	// RECORD
+	//---------------------------------------------------
+	if (bVideoWriterInit_)
+	{
+		IplImage *currentFrame = new IplImage(matTrackingResult_);
+		cvWriteFrame(videoWriter_, currentFrame);
+		delete currentFrame;
 	}
 
 	cv::namedWindow(strVisWindowName_);

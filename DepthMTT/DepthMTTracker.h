@@ -126,6 +126,7 @@ public:
 		DetectionSet vecInputDetections,
 		cv::Mat curFrame, 
 		int frameIdx);
+	void SetRecord(const std::string _strRecordPath);
 
 private:
 	/* MAIN OPERATIONS */	
@@ -218,6 +219,12 @@ public:
 	cv::Mat     matTrackingResult_;
 	std::string strVisWindowName_;
 	std::vector<cv::Scalar> vecColors_;
+
+	// record
+	bool bRecord_;
+	bool bVideoWriterInit_;
+	std::string strRecordPath_;
+	CvVideoWriter *videoWriter_;	
 
 	// TEMPORAL
 	bool bFirstDraw_;
