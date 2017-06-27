@@ -11,7 +11,9 @@
 #include "haanju_3D.hpp"
 #define DEPTH_ESTIMATE_CENTER_REGION_RATIO (0.4)
 #define DEPTH_FOREGROUND_WINDOW_SIZE (30)
-#define MAX_PENDING_TIME (30)
+#define MAX_TRANSLATION_DISTANCE (30)
+#define MAX_DEPTH_DISTANCE (30)
+#define MAX_PENDING_TIME (100)
 
 namespace hj
 {
@@ -242,6 +244,9 @@ CTrackResult& DepthMTTracker::Track(
 	BackwardTracking(vecDetectedObjects_);
 	ForwardTracking(queueActiveTracklets_);	
 	MatchingAndUpdating(vecDetectedObjects_, queueActiveTracklets_);
+
+	/* trajectory */
+	ManagingTrajectories(queueActiveTracklets_);
 
 	/* result packaging */
 	ResultPackaging();
@@ -613,15 +618,7 @@ void DepthMTTracker::MatchingAndUpdating(
 		curTracker->boxes.push_back(curDetection->detection.box);
 		curTracker->depths.push_back(curDetection->depth);
 
-		curDetection->bMatchedWithTracklet = true;
-		//queueNewActiveTrackers.push_back(curTracker);
-
-		////---------------------------------------------------
-		//// RESULT PACKAGING
-		////---------------------------------------------------
-		//CObjectInfo objectInfo;
-		//ResultWithTracker(curTracker, objectInfo);
-		//trackingResult_.objectInfos.push_back(objectInfo);
+		curDetection->bMatchedWithTracklet = true;		
 
 		// update features with detection (after result packaging)
 		curTracker->featurePoints = curDetection->vecvecTrackedFeatures.front();
@@ -631,8 +628,7 @@ void DepthMTTracker::MatchingAndUpdating(
 
 	/////////////////////////////////////////////////////////////////////////////
 	// TRACKER GENERATION
-	/////////////////////////////////////////////////////////////////////////////
-	TrackletPtQueue newTracklets;
+	/////////////////////////////////////////////////////////////////////////////	
 	for (std::vector<CDetectedObject>::iterator detectionIter = this->vecDetectedObjects_.begin();
 		detectionIter != this->vecDetectedObjects_.end();
 		detectionIter++)
@@ -654,21 +650,12 @@ void DepthMTTracker::MatchingAndUpdating(
 
 		// generate tracklet instance
 		this->listCTracklet_.push_back(newTracker);
-		newTracklets.push_back(&this->listCTracklet_.back());	
-
-		////---------------------------------------------------
-		//// RESULT PACKAGING
-		////---------------------------------------------------
-		//CObjectInfo objectInfo;
-		//ResultWithTracker(&newTracker, objectInfo);
-		//trackingResult_.objectInfos.push_back(objectInfo);
 	}
 
 	/////////////////////////////////////////////////////////////////////////////
 	// TRACKER TERMINATION
 	/////////////////////////////////////////////////////////////////////////////
 	TrackletPtQueue newActiveTracklets;
-	TrackletPtQueue newPendedTracklets;
 	for (std::list<CTracklet>::iterator trackerIter = listCTracklet_.begin();
 		trackerIter != listCTracklet_.end();
 		/*trackerIter++*/)
@@ -679,111 +666,139 @@ void DepthMTTracker::MatchingAndUpdating(
 			trackerIter = this->listCTracklet_.erase(trackerIter);
 			continue;
 		}
-		// keep
-		if ((*trackerIter).timeLastUpdate == nCurrentFrameIdx_)			
-			newActiveTracklets.push_back(&(*trackerIter));			
-		else
-			newPendedTracklets.push_back(&(*trackerIter));
-
+		if ((*trackerIter).timeLastUpdate == nCurrentFrameIdx_)
+			newActiveTracklets.push_back(&(*trackerIter));
 		trackerIter++;		
 	}
 	queueActiveTracklets_ = newActiveTracklets;
-	queuePendedTracklets_ = newPendedTracklets;
+}
 
-	/////////////////////////////////////////////////////////////////////////////
-	// TRACKLET ASSOCIATION
-	/////////////////////////////////////////////////////////////////////////////
-	
-	for (TrackletPtQueue::iterator trackletIter = queueActiveTracklets_.begin();
-		trackletIter != queueActiveTracklets_.end();
-		trackletIter++)
+
+/************************************************************************
+ Method Name: TrackletMatching
+ Description:
+	- 
+ Input Arguments:
+	- none
+ Return Values:
+	- none
+************************************************************************/
+void DepthMTTracker::ManagingTrajectories(const TrackletPtQueue &_queueActiveTracklets)
+{
+	if (this->nCurrentFrameIdx_ == 272)
 	{
-		CTrajectory *curTrajectory = (*trackletIter)->ptTrajectory;
-		if (NULL == curTrajectory)
-			continue;
+		int a = 0;
+	}
 
+	// trajectory update
+	TrackletPtQueue newTracklets;
+	for (size_t i = 0; i < _queueActiveTracklets.size(); i++)
+	{
+		if (NULL == _queueActiveTracklets[i]->ptTrajectory) 
+		{
+			newTracklets.push_back(_queueActiveTracklets[i]);
+			continue;
+		}
+		CTrajectory *curTrajectory = _queueActiveTracklets[i]->ptTrajectory;
 		curTrajectory->timeEnd = this->nCurrentFrameIdx_;
-		curTrajectory->timeLastUpdate = this->nCurrentFrameIdx_;
+		curTrajectory->timeLastUpdate = curTrajectory->timeEnd;
 		curTrajectory->duration = curTrajectory->timeEnd - curTrajectory->timeStart + 1;
-		curTrajectory->boxes.push_back((*trackletIter)->boxes.back());
-		curTrajectory->depths.push_back((*trackletIter)->depths.back());
+		curTrajectory->boxes.push_back(_queueActiveTracklets[i]->boxes.back());
+		curTrajectory->depths.push_back(_queueActiveTracklets[i]->depths.back());
 	}
-	std::deque<CTrajectory*> queueNewPendedTrajectories;
-	for (std::deque<CTrajectory*>::iterator trajIter = queuePendedTrajectories_.begin();
-		trajIter != queuePendedTrajectories_.end();
-		trajIter++)
-	{
-		if ((*trajIter)->timeLastUpdate + MAX_PENDING_TIME < nCurrentFrameIdx_)
-		{
-			continue;
-		}
-		if ((*trajIter)->timeLastUpdate == nCurrentFrameIdx_)
-		{
-			continue;
-		}
-		queueNewPendedTrajectories.push_back(*trajIter);
-	}
-	queuePendedTrajectories_ = queueNewPendedTrajectories;
-	
 
-	//---------------------------------------------------
-	// COST CALCULATION
-	//---------------------------------------------------
+	// delete expired trajectories and find pending trajectories
+	queueActiveTrajectories_.clear();
+	std::vector<CTrajectory*> vecPendedTrajectories;
+	vecPendedTrajectories.reserve(listCTrajectories_.size());
+	for (std::list<CTrajectory>::iterator trajIter = listCTrajectories_.begin();
+		trajIter != listCTrajectories_.end();
+		/*trajIter++*/)
+	{
+		if (trajIter->timeLastUpdate + MAX_PENDING_TIME < this->nCurrentFrameIdx_)
+		{
+			// termination			
+			trajIter = this->listCTrajectories_.erase(trajIter);
+			continue;
+		}
+		if (trajIter->timeLastUpdate == this->nCurrentFrameIdx_)
+			queueActiveTrajectories_.push_back(&(*trajIter));
+		else
+			vecPendedTrajectories.push_back(&(*trajIter));
+
+		trajIter++;
+	}
+
+	// trajectory-to-tracklet matching
 	arrInterTrackletMatchingCost_.clear();
 	arrInterTrackletMatchingCost_.resize(
-		queuePendedTrajectories_.size() * newTracklets.size(),
+		vecPendedTrajectories.size() * newTracklets.size(),
 		std::numeric_limits<float>::infinity());
-	for (size_t trajIdx = 0; trajIdx < queuePendedTrajectories_.size(); trajIdx++)
+	for (size_t trajIdx = 0; trajIdx < vecPendedTrajectories.size(); trajIdx++)
 	{
 		for (size_t newIdx = 0, costPos = trajIdx;
-			newIdx < newTracklets.size(); 
-			newIdx++, costPos += queuePendedTrajectories_.size())
-		{			
-			float curCost = 0.0f;
+			newIdx < newTracklets.size();
+			newIdx++, costPos += vecPendedTrajectories.size())
+		{
+			double curCost = 0.0;
 
 			// TODO: translation + depth distance
-			double distTranslate = (queuePendedTrajectories_[trajIdx]->boxes.back().center() - newTracklets[newIdx]->boxes.back().center()).norm_L2();
-			if (distTranslate > 1000.0)
+			double distTranslate = (vecPendedTrajectories[trajIdx]->boxes.back().center() - newTracklets[newIdx]->boxes.back().center()).norm_L2();
+			if (distTranslate > MAX_TRANSLATION_DISTANCE)
 				continue;
-			curCost += 100 * distTranslate;
+			curCost += distTranslate;
 
-			//double distDepth = std::abs(queueLiveTrajectories_[trajIdx]->depths.back() - newTracklets[newIdx]->depths.back());
-			//if (distDepth > 60)
-			//	continue;
-			//curCost += distDepth;
+			double distDepth = std::abs(vecPendedTrajectories[trajIdx]->depths.back() - newTracklets[newIdx]->depths.back());
+			if (distDepth > MAX_DEPTH_DISTANCE)
+				continue;
+			curCost += distDepth;
 
-			arrInterTrackletMatchingCost_[costPos] = curCost;
+			arrInterTrackletMatchingCost_[costPos] = (float)curCost;
 		}
 	}
 
 	// handling infinite in the cost array
-	maxCost = -1000.0f;
+	float maxCost = -1000.0f;
 	for (int costIdx = 0; costIdx < arrInterTrackletMatchingCost_.size(); costIdx++)
 	{
-		if (!_finitef(arrInterTrackletMatchingCost_[costIdx])) { continue; }
-		if (maxCost < arrInterTrackletMatchingCost_[costIdx]) { maxCost = arrInterTrackletMatchingCost_[costIdx]; }
+		if (!_finitef(arrInterTrackletMatchingCost_[costIdx]))
+			continue;
+		if (maxCost < arrInterTrackletMatchingCost_[costIdx])
+			maxCost = arrInterTrackletMatchingCost_[costIdx];
 	}
 	maxCost = maxCost + 100.0f;
 	for (int costIdx = 0; costIdx < arrInterTrackletMatchingCost_.size(); costIdx++)
 	{
-		if (_finitef(arrInterTrackletMatchingCost_[costIdx])) { continue; }
+		if (_finitef(arrInterTrackletMatchingCost_[costIdx]))
+			continue;
 		arrInterTrackletMatchingCost_[costIdx] = maxCost;
 	}
 
 	//---------------------------------------------------
 	// MATCHING
 	//---------------------------------------------------
-	cHungarianMatcher.Initialize(arrTrackletToDetectionMatchingCost_, (unsigned int)newTracklets.size(), (unsigned int)this->queuePendedTrajectories_.size());
-	curMatchInfo = cHungarianMatcher.Match();
+	CHungarianMethod cHungarianMatcher;
+	cHungarianMatcher.Initialize(arrInterTrackletMatchingCost_, (unsigned int)newTracklets.size(), (unsigned int)vecPendedTrajectories.size());
+	stMatchInfo *curMatchInfo = cHungarianMatcher.Match();
 	for (size_t matchIdx = 0; matchIdx < curMatchInfo->rows.size(); matchIdx++)
 	{
 		if (maxCost == curMatchInfo->matchCosts[matchIdx]) { continue; }
 		CTracklet *curTracklet = newTracklets[curMatchInfo->rows[matchIdx]];
-		CTrajectory *curTrajectory = this->queuePendedTrajectories_[curMatchInfo->cols[matchIdx]];
+		CTrajectory *curTrajectory = vecPendedTrajectories[curMatchInfo->cols[matchIdx]];
 
-		curTracklet->ptTrajectory = curTrajectory;		
+		curTracklet->ptTrajectory = curTrajectory;
+
+		// updata matched trajectory
+		curTrajectory->timeEnd = this->nCurrentFrameIdx_;
+		curTrajectory->timeLastUpdate = curTrajectory->timeEnd;
+		curTrajectory->duration = curTrajectory->timeEnd - curTrajectory->timeStart + 1;
+		curTrajectory->boxes.push_back(curTracklet->boxes.back());
+		curTrajectory->depths.push_back(curTracklet->depths.back());
+		curTrajectory->trackletIDs.push_back(curTracklet->id);
+
+		queueActiveTrajectories_.push_back(curTrajectory);
 	}
-	cHungarianMatcher.Finalize();	
+	cHungarianMatcher.Finalize();
 
 	/////////////////////////////////////////////////////////////////////////////
 	// TRAJECTORY GENERATION
@@ -799,65 +814,16 @@ void DepthMTTracker::MatchingAndUpdating(
 		newTrajectory.timeStart = this->nCurrentFrameIdx_;
 		newTrajectory.timeEnd = this->nCurrentFrameIdx_;
 		newTrajectory.timeLastUpdate = this->nCurrentFrameIdx_;
-		newTrajectory.duration = 1;		
+		newTrajectory.duration = 1;
 		newTrajectory.boxes.push_back((*trackletIter)->boxes.back());
 		newTrajectory.depths.push_back((*trackletIter)->depths.back());
 		newTrajectory.trackletIDs.push_back((*trackletIter)->id);
 
-		// generate tracklet instance
-		this->listCTrajectories_.push_back(newTrajectory);
-		queueLiveTrajectories_.push_back(&this->listCTrajectories_.back());
+		// generate trajectory instance
+		this->listCTrajectories_.push_back(newTrajectory);		
 		(*trackletIter)->ptTrajectory = &this->listCTrajectories_.back();
+		queueActiveTrajectories_.push_back(&this->listCTrajectories_.back());
 	}
-
-	//---------------------------------------------------
-	// TRAJECTORY UPDATE
-	//---------------------------------------------------	
-	for (TrackletPtQueue::iterator trackletIter = queueActiveTracklets_.begin();
-		trackletIter != queueActiveTracklets_.end();
-		trackletIter++)
-	{
-		CTrajectory *curTrajectory = (*trackletIter)->ptTrajectory;
-
-		curTrajectory->timeEnd = this->nCurrentFrameIdx_;
-		curTrajectory->timeLastUpdate = this->nCurrentFrameIdx_;
-		curTrajectory->duration = curTrajectory->timeEnd - curTrajectory->timeStart + 1;		
-		curTrajectory->boxes.push_back((*trackletIter)->boxes.back());
-		curTrajectory->depths.push_back((*trackletIter)->depths.back());
-	}
-
-	/////////////////////////////////////////////////////////////////////////////
-	// TRAJECTORY TERMINATION
-	/////////////////////////////////////////////////////////////////////////////
-	std::deque<CTrajectory*> queueNewLiveTrajectories;
-	for (std::deque<CTrajectory*>::iterator trajIter = queueLiveTrajectories_.begin();
-		trajIter != queueLiveTrajectories_.end();
-		trajIter++)
-	{
-		if ((*trajIter)->timeLastUpdate + MAX_PENDING_TIME < nCurrentFrameIdx_)
-		{			
-			continue;
-		}
-		queueNewLiveTrajectories.push_back(*trajIter);
-	}
-	queueLiveTrajectories_ = queueNewLiveTrajectories;
-}
-
-
-/************************************************************************
- Method Name: TrackletMatching
- Description:
-	- 
- Input Arguments:
-	- none
- Return Values:
-	- none
-************************************************************************/
-void DepthMTTracker::TrackletMatching(
-	const TrackletPtQueue &queuePreviousTracklets,
-	const TrackletPtQueue &queueNewTracklets)
-{
-
 }
 
 
@@ -1300,15 +1266,20 @@ double DepthMTTracker::GetEstimatedDepth(const cv::Mat frameImage, const Rect ob
 		histDepths[vecCenterDepths[i]-minDepth].second++;
 	}
 
+	if (51 == this->nCurrentFrameIdx_)
+	{
+		int a = 0;
+	}
+
 	// count inliers 
 	int maxNumInliers = 0;
 	uchar estimatedCenterDepth = 0;
-	for (size_t i = 0; i < histDepths.size(); i++)
+	for (int i = 0; i < histDepths.size(); i++)
 	{
-		size_t neighborStart = MAX(0, i - (size_t)(0.5 * DEPTH_FOREGROUND_WINDOW_SIZE));
-		size_t neighborEnd = MIN(histDepths.size(), i + (size_t)(0.5 * DEPTH_FOREGROUND_WINDOW_SIZE)) - 1;
+		int neighborStart = MAX(0, i - (int)(0.5 * DEPTH_FOREGROUND_WINDOW_SIZE));
+		int neighborEnd = MIN(histDepths.size(), i + (int)(0.5 * DEPTH_FOREGROUND_WINDOW_SIZE)) - 1;
 		int curNumInliers = 0;
-		for (size_t j = neighborStart; j <= neighborEnd; j++)
+		for (int j = neighborStart; j <= neighborEnd; j++)
 		{
 			curNumInliers += histDepths[j].second;
 		}
@@ -1366,6 +1337,12 @@ void DepthMTTracker::ResultWithTrajectories(CTracklet *curTrajectory, CObjectInf
 ************************************************************************/
 void DepthMTTracker::VisualizeResult()
 {
+	/* frame information */
+	char strFrameInfo[100];
+	sprintf_s(strFrameInfo, "%04d", this->nCurrentFrameIdx_);
+	cv::rectangle(matTrackingResult_, cv::Rect(5, 2, 60, 22), cv::Scalar(0, 0, 0), CV_FILLED);
+	cv::putText(matTrackingResult_, strFrameInfo, cv::Point(6, 20), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255));
+
 	/* detections */
 	for (int detIdx = 0; detIdx < vecDetectedObjects_.size(); detIdx++)
 	{
@@ -1414,9 +1391,9 @@ void DepthMTTracker::VisualizeResult()
 	}
 
 	/* trajectories */
-	for (int trajIdx = 0; trajIdx < queueLiveTrajectories_.size(); trajIdx++)
+	for (int trajIdx = 0; trajIdx < queueActiveTrajectories_.size(); trajIdx++)
 	{
-		CTrajectory *curTrajectory = queueLiveTrajectories_[trajIdx];
+		CTrajectory *curTrajectory = queueActiveTrajectories_[trajIdx];
 
 		if (curTrajectory->timeEnd != this->nCurrentFrameIdx_) { continue; }
 		hj::DrawBoxWithID(matTrackingResult_, curTrajectory->boxes.back(), curTrajectory->id, 0, 0, &vecColors_);

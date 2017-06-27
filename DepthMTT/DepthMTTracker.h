@@ -138,9 +138,7 @@ private:
 	void MatchingAndUpdating(
 		const std::vector<CDetectedObject> &vecDetectedObjects, 
 		TrackletPtQueue &queueTracklets);
-	void TrackletMatching(
-		const TrackletPtQueue &queuePreviousTracklets,
-		const TrackletPtQueue &queueNewTracklets);
+	void ManagingTrajectories(const TrackletPtQueue &_queueActiveTracklets);
 	void ResultPackaging();
 
 	/* TRACKING RELATED */
@@ -198,13 +196,11 @@ public:
 	unsigned int         nNewTrackletID_;
 	std::list<CTracklet> listCTracklet_;
 	TrackletPtQueue      queueActiveTracklets_;
-	TrackletPtQueue      queuePendedTracklets_;	
+	TrackletPtQueue      queueNewTracklets_;
 
-	unsigned int         nNewTrajectoryID_;
-	std::list<CTrajectory> listCTrajectories_;
-	std::deque<CTrajectory*> queueActiveTrajectories_;
-	std::deque<CTrajectory*> queuePendedTrajectories_;
-	std::deque<CTrajectory*> queueLiveTrajectories_;
+	unsigned int             nNewTrajectoryID_;
+	std::list<CTrajectory>   listCTrajectories_;
+	std::deque<CTrajectory*> queueActiveTrajectories_;	
 
 	/* matching related */
 	std::vector<float> arrTrackletToDetectionMatchingCost_;
