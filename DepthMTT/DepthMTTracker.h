@@ -36,8 +36,7 @@ public:
 public:
 	unsigned int id;
 	CDetection   detection;
-	Point3D      location;
-	double       height;
+	double       depth;
 	bool         bMatchedWithTracklet;
 	bool         bCoveredByOtherDetection;
 
@@ -46,9 +45,34 @@ public:
 	std::vector<Rect> boxes; // current -> past order
 
 	/* appearance related */
-	cv::Mat patchGray;
-	cv::Mat patchRGB;
+	//cv::Mat patchGray;
+	//cv::Mat patchRGB;
 };
+
+
+class CTrajectory
+{
+	//----------------------------------------------------------------
+	// METHODS
+	//----------------------------------------------------------------
+public:
+	CTrajectory();
+	~CTrajectory();
+
+	//----------------------------------------------------------------
+	// VARIABLES
+	//----------------------------------------------------------------
+public:
+	unsigned int id;
+	unsigned int timeStart;
+	unsigned int timeEnd;
+	unsigned int timeLastUpdate;
+	unsigned int duration;
+	std::deque<int> trackletIDs;
+	std::deque<hj::Rect> boxes;
+	std::deque<double> depths;
+};
+typedef std::deque<CTrajectory> TrajectoryVector;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -74,32 +98,14 @@ public:
 	unsigned int duration;
 	unsigned int numStatic;
 	double confidence;
-	std::deque<hj::Rect> boxes;
-	std::deque<hj::Rect> heads;
+	std::deque<hj::Rect> boxes;	
+	std::deque<double> depths;
 	std::vector<cv::Point2f> featurePoints;
-	std::vector<cv::Point2f> trackedPoints;
-	Point3D lastPosition;
+	std::vector<cv::Point2f> trackedPoints;	
 	hj::Rect estimatedBox;
-	double height;
+	CTrajectory *ptTrajectory;
 };
 typedef std::deque<CTracklet*> TrackletPtQueue;
-
-
-class CTrajectory
-{
-	//----------------------------------------------------------------
-	// METHODS
-	//----------------------------------------------------------------
-public:
-	CTrajectory();
-	~CTrajectory();
-
-	//----------------------------------------------------------------
-	// VARIABLES
-	//----------------------------------------------------------------
-public:
-};
-typedef std::deque<CTrajectory> TrajectoryVector;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -124,6 +130,7 @@ public:
 private:
 	/* MAIN OPERATIONS */	
 	void GenerateDetectedObjects(
+		const cv::Mat frameImage,
 		DetectionSet &vecDetections,
 		std::vector<CDetectedObject> &vecDetectedObjects);
 	void BackwardTracking(std::vector<CDetectedObject> &vecDetectedObjects);
@@ -162,6 +169,7 @@ private:
 	static double GetTrackingConfidence(Rect &box, std::vector<cv::Point2f> &vecTrackedFeatures);
 
 	/* ETC */
+	double GetEstimatedDepth(const cv::Mat frameImage, const Rect objectBox);
 	void ResultWithTrajectories(CTracklet *curTrajectory, CObjectInfo &outObjectInfo);
 
 	/* FOR DEBUGGING */
@@ -191,6 +199,12 @@ public:
 	std::list<CTracklet> listCTracklet_;
 	TrackletPtQueue      queueActiveTracklets_;
 	TrackletPtQueue      queuePendedTracklets_;	
+
+	unsigned int         nNewTrajectoryID_;
+	std::list<CTrajectory> listCTrajectories_;
+	std::deque<CTrajectory*> queueActiveTrajectories_;
+	std::deque<CTrajectory*> queuePendedTrajectories_;
+	std::deque<CTrajectory*> queueLiveTrajectories_;
 
 	/* matching related */
 	std::vector<float> arrTrackletToDetectionMatchingCost_;

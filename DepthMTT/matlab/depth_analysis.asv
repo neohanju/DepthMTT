@@ -1,0 +1,76 @@
+clear;
+
+% =========================================================================
+data_base_path = '../data/MTT_S_01';
+depth_image_fig_num = 100;
+% =========================================================================
+
+% color preset
+NUM_COLORS = 400;
+COLORS = distinguishable_colors(NUM_COLORS);
+tempColor = COLORS(end, :); % move black color to the end
+COLORS(end, :) = COLORS(4, :);
+COLORS(4, :) = tempColor;
+
+% main loop
+file_list = dir(sprintf('%s/*.png', data_base_path));
+file_names = sort({file_list(:).name});
+for i = 1:length(file_names)    
+    % read image
+    depth_image = imread(fullfile(data_base_path, file_names{i}));
+    
+    % read box info
+    num_objects = 0;
+    [~, name, ext] = fileparts(file_names{i});
+    gt_file_path = fullfile(data_base_path, [name '.txt']);
+    if exist(gt_file_path, 'file')
+        fid = fopen(gt_file_path);
+        num_objects = str2double(fgetl(fid));
+        read_data = fscanf(fid, '%d %f %f %f %f %f\n');
+        read_data = reshape(read_data, length(read_data)/num_objects, ...
+            num_objects)';
+        fclose(fid);
+    end
+    
+    figure(depth_image_fig_num);
+    imshow(depth_image, 'border', 'tight');
+    
+    % visualize box info
+    for objIdx = 1:num_objects
+        
+        % box info
+        obj_id = read_data(objIdx, 1);
+        obj_center_depth = read_data(objIdx, 2);
+        obj_x = read_data(objIdx, 3) + 1;
+        obj_y = floor(read_data(objIdx, 4) + 1;
+        obj_s = floor(read_data(objIdx, 5));  % scale
+        curColor = COLORS(objIdx, :);
+        
+        % depth distribution
+        depths = zeros(1, obj_s*obj_s);
+        depthPos = 1;
+        for x = obj_x:obj_x+obj_s-1
+            for y = obj_y:obj_y+obj_s-1
+                depths(depthPos) = depth_image(y, x);
+                depthPos = depthPos + 1;
+            end
+        end        
+        figure(objIdx); clf;
+        hist(depths);
+        
+        % draw box
+        figure(depth_image_fig_num); 
+        hold on;
+        rectangle('position', [obj_x, obj_y, obj_s, obj_s], ...
+            'EdgeColor', curColor);
+        text(obj_x, obj_y, ['\fontsize{10}\color{white}' ...
+            int2str(obj_id)],'BackgroundColor', curColor);
+        hold off;
+    end
+    
+    pause;
+end
+
+
+%()()
+%('')HAANJU.YOO
