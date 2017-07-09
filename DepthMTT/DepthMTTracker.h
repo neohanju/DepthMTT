@@ -126,7 +126,6 @@ public:
 		DetectionSet vecInputDetections,
 		cv::Mat curFrame, 
 		int frameIdx);
-	void SetRecord(const std::string _strRecordPath);
 
 private:
 	/* MAIN OPERATIONS */	
@@ -169,7 +168,7 @@ private:
 
 	/* ETC */
 	double GetEstimatedDepth(const cv::Mat frameImage, const Rect objectBox);
-	void ResultWithTrajectories(CTracklet *curTrajectory, CObjectInfo &outObjectInfo);
+	CObjectInfo GetObjectInfo(CTrajectory *curTrajectory);
 
 	/* FOR DEBUGGING */
 	void VisualizeResult();

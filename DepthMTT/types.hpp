@@ -292,6 +292,7 @@ public:
 	double depth;
 	double score;
 	cv::Mat patch;
+	int id; // for GT
 };
 typedef std::vector<CDetection> DetectionSet;
 
@@ -303,7 +304,7 @@ class CObjectInfo
 	//----------------------------------------------------------------
 public:
 	// constructors
-	CObjectInfo() : id(0), box(0.0, 0.0, 0.0, 0.0), depth(0.0), score(0.0) {}
+	CObjectInfo() : id(0), box(0.0, 0.0, 0.0, 0.0), depth(0.0) {}
 
 	//----------------------------------------------------------------
 	// VARIABLES
@@ -312,9 +313,6 @@ public:
 	unsigned int id;
 	Rect         box;
 	double       depth;
-	double       score;
-	std::vector<cv::Point2f> prevFeatures;
-	std::vector<cv::Point2f> currFeatures;
 };
 
 
@@ -615,6 +613,8 @@ struct stParamTrack
 		, dMaxDetectionDistance(500.0)
 		, dMaxHeightDifference(400.0)
 		, bVisualize(false)
+		, bVideoRecord(false)
+		, strVideoRecordPath("")
 	{};
 	~stParamTrack() {};
 
@@ -648,28 +648,13 @@ struct stParamTrack
 	double dMaxHeightDifference;
 
 	/* visualization for debugging */
-	bool   bVisualize;	
+	bool   bVisualize;
+
+	/* video recording for result visualization */
+	bool        bVideoRecord;
+	std::string strVideoRecordPath;
 };
 
-struct stParamEvaluator
-{
-	//------------------------------------------------
-	// METHODS
-	//------------------------------------------------
-	stParamEvaluator()
-		: strGroundTruthPath("")
-		, cropZone(0.0, 0.0, 0.0, 0.0)
-		, cropZoneMargin(500.0)
-	{};
-	~stParamEvaluator() {};
-
-	//------------------------------------------------
-	// VARIABLES
-	//------------------------------------------------
-	std::string strGroundTruthPath;
-	hj::Rect    cropZone;
-	double      cropZoneMargin;
-};
 
 }
 

@@ -167,8 +167,34 @@ void DepthMTTracker::Initialize(stParamTrack &_stParams)
 	bFirstDraw_ = true;
 
 	// record
-	bRecord_ = false;
+	bRecord_ = stParam_.bVideoRecord;
 	bVideoWriterInit_ = false;
+	if (bRecord_) {
+		strRecordPath_ = stParam_.strVideoRecordPath;
+
+		// get time
+		time_t curTimer = time(NULL);
+		struct tm timeStruct;
+		localtime_s(&timeStruct, &curTimer);
+
+		// make file name
+		char resultOutputFileName[256];
+		sprintf_s(resultOutputFileName, "%s_result_%02d%02d%02d_%02d%02d%02d.avi",
+			strRecordPath_.c_str(),
+			timeStruct.tm_year + 1900,
+			timeStruct.tm_mon + 1,
+			timeStruct.tm_mday,
+			timeStruct.tm_hour,
+			timeStruct.tm_min,
+			timeStruct.tm_sec);
+
+		// init video writer
+		CvSize imgSize;
+		imgSize.width = stParam_.nImageWidth;
+		imgSize.height = stParam_.nImageHeight;
+		videoWriter_ = cvCreateVideoWriter(resultOutputFileName, CV_FOURCC('M', 'J', 'P', 'G'), 15, imgSize, 1);
+		bVideoWriterInit_ = true;
+	}
 
 	// initialization flag
 	bInit_ = true;
@@ -217,47 +243,6 @@ void DepthMTTracker::Finalize(void)
 
 	/* initialization flag */
 	bInit_ = false;
-}
-
-
-/************************************************************************
- Method Name: SetRecord
- Description:
-	- terminate the class with memory clean up
- Input Arguments:
-	- none
- Return Values:
-	- none
-************************************************************************/
-void DepthMTTracker::SetRecord(const std::string _strRecordPath)
-{
-	bRecord_ = true;
-	strRecordPath_ = _strRecordPath;
-
-	if (bRecord_) {
-		// get time
-		time_t curTimer = time(NULL);
-		struct tm timeStruct;
-		localtime_s(&timeStruct, &curTimer);
-
-		// make file name
-		char resultOutputFileName[256];
-		sprintf_s(resultOutputFileName, "%s_result_%02d%02d%02d_%02d%02d%02d.avi",
-			strRecordPath_.c_str(),
-			timeStruct.tm_year + 1900,
-			timeStruct.tm_mon + 1,
-			timeStruct.tm_mday,
-			timeStruct.tm_hour,
-			timeStruct.tm_min,
-			timeStruct.tm_sec);
-
-		// init video writer
-		CvSize imgSize;
-		imgSize.width = stParam_.nImageWidth;
-		imgSize.height = stParam_.nImageHeight;
-		videoWriter_ = cvCreateVideoWriter(resultOutputFileName, CV_FOURCC('M', 'J', 'P', 'G'), 15, imgSize, 1);
-		bVideoWriterInit_ = true;
-	}
 }
 
 
@@ -884,17 +869,13 @@ void DepthMTTracker::ManagingTrajectories(const TrackletPtQueue &_queueActiveTra
 ************************************************************************/
 void DepthMTTracker::ResultPackaging()
 {
-	time_t timePackaging = clock();
-	CObjectInfo objectInfo;
-	
+	time_t timePackaging = clock();	
 	trackingResult_.frameIdx  = nCurrentFrameIdx_;
 	trackingResult_.timeStamp = (unsigned int)timePackaging;
 	trackingResult_.objectInfos.clear();	
-	for (size_t trackerIdx = 0; trackerIdx < queueActiveTracklets_.size(); trackerIdx++)
+	for (size_t tIdx = 0; tIdx < queueActiveTrajectories_.size(); tIdx++)
 	{
-		// TODO: modify the input arguments of the function at the below
-		ResultWithTrajectories(queueActiveTracklets_[trackerIdx], objectInfo);
-		trackingResult_.objectInfos.push_back(objectInfo);
+		trackingResult_.objectInfos.push_back(GetObjectInfo(queueActiveTrajectories_[tIdx]));
 	}
 
 	int cost_pos = 0;
@@ -1232,14 +1213,6 @@ double DepthMTTracker::BoxMatchingCost(Rect &box1, Rect &box2)
 	double boxDistance = (nominator * nominator) / (denominator * denominator);
 
 	return boxDistance;
-
-	//double probability = std::exp(-boxDistance);
-	//double cost = -std::numeric_limits<double>::infinity();
-	//if(1.0 > probability)
-	//{
-	//	cost = boxDistance + std::log(1.0 - probability); 
-	//}
-	//return cost;
 }
 
 
@@ -1323,7 +1296,7 @@ double DepthMTTracker::GetEstimatedDepth(const cv::Mat frameImage, const Rect ob
 	for (int i = 0; i < histDepths.size(); i++)
 	{
 		int neighborStart = MAX(0, i - (int)(0.5 * DEPTH_FOREGROUND_WINDOW_SIZE));
-		int neighborEnd = MIN(histDepths.size(), i + (int)(0.5 * DEPTH_FOREGROUND_WINDOW_SIZE)) - 1;
+		int neighborEnd = MIN((int)histDepths.size(), i + (int)(0.5 * DEPTH_FOREGROUND_WINDOW_SIZE)) - 1;
 		int curNumInliers = 0;
 		for (int j = neighborStart; j <= neighborEnd; j++)
 		{
@@ -1341,7 +1314,7 @@ double DepthMTTracker::GetEstimatedDepth(const cv::Mat frameImage, const Rect ob
 
 
 /************************************************************************
- Method Name: ResultWithTracker
+ Method Name: GetObjectInfo
  Description:
 	-
  Input Arguments:
@@ -1349,26 +1322,20 @@ double DepthMTTracker::GetEstimatedDepth(const cv::Mat frameImage, const Rect ob
  Return Values:
 	-
 ************************************************************************/
-void DepthMTTracker::ResultWithTrajectories(CTracklet *curTrajectory, CObjectInfo &outObjectInfo)
+CObjectInfo DepthMTTracker::GetObjectInfo(CTrajectory *curTrajectory)
 {
+	CObjectInfo outObjectInfo;
+	assert(curTrajectory->timeEnd == nCurrentFrameIdx_);
+
 	Rect curBox = curTrajectory->boxes.back();
 	curBox.x *= (float)stParam_.dImageRescaleRecover;
 	curBox.y *= (float)stParam_.dImageRescaleRecover;
 	curBox.w *= (float)stParam_.dImageRescaleRecover;
 	curBox.h *= (float)stParam_.dImageRescaleRecover;
-	outObjectInfo.prevFeatures = curTrajectory->featurePoints;
-	outObjectInfo.currFeatures = curTrajectory->trackedPoints;
 	outObjectInfo.id = curTrajectory->id;
 	outObjectInfo.box = curBox;
-	outObjectInfo.score = 0;
-	for (int pointIdx = 0; pointIdx < outObjectInfo.prevFeatures.size(); pointIdx++)
-	{
-		outObjectInfo.prevFeatures[pointIdx].x *= (float)stParam_.dImageRescaleRecover;
-		outObjectInfo.prevFeatures[pointIdx].y *= (float)stParam_.dImageRescaleRecover;
-		if (pointIdx >= outObjectInfo.currFeatures.size()) { continue; }
-		outObjectInfo.currFeatures[pointIdx].x *= (float)stParam_.dImageRescaleRecover;
-		outObjectInfo.currFeatures[pointIdx].y *= (float)stParam_.dImageRescaleRecover;
-	}
+	
+	return outObjectInfo;
 }
 
 
@@ -1400,34 +1367,34 @@ void DepthMTTracker::VisualizeResult()
 	}
 
 	/* tracklets */
-	for (int objIdx = 0; objIdx < trackingResult_.objectInfos.size(); objIdx++)
+	for (int tIdx = 0; tIdx < queueActiveTracklets_.size(); tIdx++)
 	{
-		CObjectInfo *curObject = &trackingResult_.objectInfos[objIdx];
+		CTracklet *curTracklet = queueActiveTracklets_[tIdx];
 
 		// feature points
-		for (int pointIdx = 0; pointIdx < curObject->prevFeatures.size(); pointIdx++)
+		for (int pointIdx = 0; pointIdx < curTracklet->featurePoints.size(); pointIdx++)
 		{
-			if (pointIdx < curObject->currFeatures.size())
+			if (pointIdx < curTracklet->trackedPoints.size())
 			{
 				cv::circle(
 					matTrackingResult_,
-					curObject->prevFeatures[pointIdx],
+					curTracklet->featurePoints[pointIdx],
 					1, cv::Scalar(0, 255, 0), 1);
 				cv::line(
 					matTrackingResult_,
-					curObject->prevFeatures[pointIdx],
-					curObject->currFeatures[pointIdx],
+					curTracklet->featurePoints[pointIdx],
+					curTracklet->trackedPoints[pointIdx],
 					cv::Scalar(255, 255, 255), 1);
 				cv::circle(
 					matTrackingResult_,
-					curObject->currFeatures[pointIdx],
+					curTracklet->trackedPoints[pointIdx],
 					1, cv::Scalar(0, 255, 0), 1);
 			}
 			else
 			{
 				cv::circle(
 					matTrackingResult_,
-					curObject->prevFeatures[pointIdx],
+					curTracklet->featurePoints[pointIdx],
 					1, cv::Scalar(0, 0, 255), 1);
 			}
 		}
@@ -1456,7 +1423,7 @@ void DepthMTTracker::VisualizeResult()
 	}
 
 	cv::namedWindow(strVisWindowName_);
-	//cv::moveWindow(strVisWindowName_, 10, 10);
+	cv::moveWindow(strVisWindowName_, 10, 10);
 	cv::imshow(strVisWindowName_, matTrackingResult_);
 	cv::waitKey(1);
 	matTrackingResult_.release();

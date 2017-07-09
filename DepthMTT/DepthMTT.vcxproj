@@ -148,6 +148,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Evaluator.h" />
     <ClInclude Include="haanju_3D.hpp" />
     <ClInclude Include="haanju_fileIO.hpp" />
     <ClInclude Include="haanju_math.hpp" />
@@ -163,6 +164,7 @@
     <ClInclude Include="types_3D.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Evaluator.cpp" />
     <ClCompile Include="haanju_3D.cpp" />
     <ClCompile Include="haanju_fileIO.cpp" />
     <ClCompile Include="haanju_math.cpp" />

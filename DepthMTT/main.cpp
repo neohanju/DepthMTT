@@ -81,62 +81,66 @@
 #include "DepthMTTracker.h"
 #include "haanju_string.hpp"
 #include "haanju_fileIO.hpp"
+#include "Evaluator.h"
+
+#define MTT_S_05
+#ifdef MTT_S_01
+	#define DATASET_PATH (".\\data\\MTT_S_01")
+	#define START_FRAME_INDEX (0)
+	#define END_FRAME_INDEX (407)
+#endif
+#ifdef MTT_S_02
+	#define DATASET_PATH (".\\data\\MTT_S_02")
+	#define START_FRAME_INDEX (0)
+	#define END_FRAME_INDEX (431)
+#endif
+#ifdef MTT_S_03
+	#define DATASET_PATH (".\\data\\MTT_S_03")
+	#define START_FRAME_INDEX (0)
+	#define END_FRAME_INDEX (438)
+#endif
+#ifdef MTT_S_04
+	#define DATASET_PATH (".\\data\\MTT_S_04")
+	#define START_FRAME_INDEX (0)
+	#define END_FRAME_INDEX (693)
+#endif
+#ifdef MTT_S_05
+#define DATASET_PATH (".\\data\\MTT_S_05")
+#define START_FRAME_INDEX (0)
+#define END_FRAME_INDEX (235)
+#endif
 
 int main(int argc, char** argv)
 {	
-	//---------------------------------------------------
-	// ARGUMENTS PARSING
-	//---------------------------------------------------	
-	int fIdxStart = 0, fIdxEnd = 100;
-	if (argc < 4)
-	{
-		printf("[WARNING] Insufficient number of parameters\n");
-		printf("- Dataset path\n");
-		printf("- Index of starting frame\n");
-		printf("- Index of ending frame\n");
-		return -1;
-	}
-
-	// base path of the dataset
-	std::string strDatasetPath = std::string(argv[1]);
-
-	// starting frame index
-	std::istringstream ssFrameIdxStart(argv[2]);
-	if (!(ssFrameIdxStart >> fIdxStart))
-	{
-		std::cerr << "Invalid starting frame index: " << argv[2] << std::endl;
-		return -1;
-	}
-
-	// ending frame index
-	std::istringstream ssFrameIdxEnd(argv[3]);
-	if (!(ssFrameIdxEnd >> fIdxEnd))
-	{
-		std::cerr << "Invalid ending frame index: " << argv[3] << std::endl;
-		return -1;
-	}
-	
-
-	//---------------------------------------------------
-	// MAIN SECTION
-	//---------------------------------------------------	
+	std::string strDatasetPath = std::string(DATASET_PATH);
 	std::string strFilePath;
 	cv::Mat matCurFrame;
 	hj::DetectionSet curDetections;
-	hj::DepthMTTracker cTracker;
+	hj::CTrackResult trackResult;
 
-	// parameters
+	// init tracker
 	hj::stParamTrack trackParams;
 	trackParams.nImageWidth = 512;
 	trackParams.nImageHeight = 424;
 	trackParams.bVisualize = true;
+	trackParams.bVideoRecord = false;
+	trackParams.strVideoRecordPath = strDatasetPath;
+	hj::DepthMTTracker cTracker;
 	cTracker.Initialize(trackParams);
-	cTracker.SetRecord(strDatasetPath);
 
-	for (int fIdx = fIdxStart; fIdx < fIdxEnd; fIdx++)
+	// init evaluator
+	hj::stParamEvaluator evalParams;
+	evalParams.strGTPath = strDatasetPath;
+	evalParams.nStartFrameIndex = START_FRAME_INDEX;
+	evalParams.nEndFrameIndex = END_FRAME_INDEX;
+	evalParams.dIOU = 0.5;
+	hj::CEvaluator evaluator;
+	evaluator.Initialize(evalParams);
+
+	for (int fIdx = START_FRAME_INDEX; fIdx <= END_FRAME_INDEX; fIdx++)
 	{
 		// get frame image
-		strFilePath = strDatasetPath + "/" + hj::FormattedString("%06d.png", fIdx);
+		strFilePath = strDatasetPath + "\\" + hj::FormattedString("%06d.png", fIdx);
 		matCurFrame = cv::imread(strFilePath, cv::IMREAD_GRAYSCALE);
 		if (matCurFrame.empty())
 		{
@@ -149,8 +153,13 @@ int main(int argc, char** argv)
 		curDetections = hj::ReadDetectionResultWithTxt(strFilePath, hj::DEPTH_HEAD);
 
 		// track
-		cTracker.Track(curDetections, matCurFrame, fIdx);
+		trackResult = cTracker.Track(curDetections, matCurFrame, fIdx);
+		evaluator.InsertResult(trackResult);
 	}
+
+	evaluator.Evaluate();
+	evaluator.PrintResultToConsole();
+	evaluator.PrintResultToFile();
 
 	return 0;
 }

@@ -95,32 +95,6 @@ void hj::printLog(const char *filename, std::string strLog)
 }
 
 
-//************************************************************************
-// Method Name: GrabFrame
-// Description: 
-//	- frame grabbing
-// Input Arguments:
-//	- strDatasetPath: path of the dataset
-//	- camID: camera ID
-//	- frameIdx: frame index
-// Return Values:
-//	- grabbed frame in cv::Mat container
-//************************************************************************/
-//cv::Mat hj::GrabFrame(std::string strDatasetPath, unsigned int camID, unsigned int frameIdx)
-//{
-//	char inputFilePath[300];
-//	if (PSN_INPUT_TYPE)	
-//	{
-//		sprintf_s(inputFilePath, sizeof(inputFilePath), "%s\\View_%03d\\frame_%04d.jpg", strDatasetPath.c_str(), camID, frameIdx);						
-//	} 
-//	else 
-//	{
-//		sprintf_s(inputFilePath, sizeof(inputFilePath), "%s\\%d_%d.jpg", strDatasetPath.c_str(), camID, frameIdx);						
-//	}	
-//	return cv::imread(inputFilePath, cv::IMREAD_COLOR);
-//}
-
-
 /************************************************************************
  Method Name: ReadDetectionResultWithTxt
  Description:
@@ -134,7 +108,7 @@ std::vector<hj::CDetection> hj::ReadDetectionResultWithTxt(std::string _strFileP
 {
 	std::vector<hj::CDetection> vec_result;
 	int num_detection = 0;
-	float x, y, w, h, temp, depth, id;
+	float x, y, w, h, depth, id;
 
 	FILE *fid;
 	try {		
@@ -143,34 +117,8 @@ std::vector<hj::CDetection> hj::ReadDetectionResultWithTxt(std::string _strFileP
 
 		switch (_detectionType)
 		{
-		case hj::PARTS:	// Parts
-				//// read # of detections
-				//fscanf_s(fid, "numBoxes:%d\n", &num_detection);
-				//vec_result.reserve(num_detection);
-
-				//// read box infos
-				//for (int detect_idx = 0; detect_idx < num_detection; detect_idx++)
-				//{
-				//	fscanf_s(fid, "{\n\tROOT:{%f,%f,%f,%f}\n", &x, &y, &w, &h);
-				//	CDetection cur_detection;
-				//	cur_detection.box = Rect((double)x, (double)y, (double)w, (double)h);
-
-				//	// read part info
-				//	cur_detection.vecPartBoxes.reserve(8);
-				//	for (unsigned int partIdx = 0; partIdx < NUM_DETECTION_PART; partIdx++)
-				//	{
-				//		char strPartName[20];
-				//		sprintf_s(strPartName, "\t%s:", DETCTION_PART_NAME[partIdx].c_str());
-				//		fscanf_s(fid, strPartName);
-				//		fscanf_s(fid, "{%f,%f,%f,%f}\n", &x, &y, &w, &h);
-				//		PSN_Rect partBox((double)x, (double)y, (double)w, (double)h);
-				//		cur_detection.vecPartBoxes.push_back(partBox);
-				//	}
-				//	fscanf_s(fid, "}\n");
-				//	vec_result.push_back(cur_detection);
-				//}			
-			break;
 		case hj::DEPTH_HEAD:
+		default:
 			// read # of detections
 			fscanf_s(fid, "%d\n", &num_detection);
 			vec_result.reserve(num_detection);
@@ -180,22 +128,8 @@ std::vector<hj::CDetection> hj::ReadDetectionResultWithTxt(std::string _strFileP
 			{
 				fscanf_s(fid, "%f %f %f %f %f %f\n", &id, &depth, &x, &y, &w, &h);
 				CDetection cur_detection;
+				cur_detection.id = (int)id;
 				cur_detection.box = Rect((double)x, (double)y, (double)w, (double)h);				
-				vec_result.push_back(cur_detection);
-			}
-			break;
-		default: // Full-body or head
-			// read # of detections
-			fscanf_s(fid, "%d\n", &num_detection);
-			vec_result.reserve(num_detection);
-
-			// read box infos
-			for (int detect_idx = 0; detect_idx < num_detection; detect_idx++)
-			{
-				fscanf_s(fid, "%f %f %f %f %f %f\n", &temp, &temp, &w, &h, &x, &y);
-				CDetection cur_detection;
-				cur_detection.box = Rect((double)x, (double)y, (double)w, (double)h);
-				//curDetection.vecPartBoxes.reserve(8);
 				vec_result.push_back(cur_detection);
 			}
 			break;

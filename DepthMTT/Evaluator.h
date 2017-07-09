@@ -5,19 +5,32 @@
 namespace hj
 {
 
-typedef std::pair<unsigned int, hj::Point3D> pointInfo;
-typedef std::deque<pointInfo> pointInfoSet;
+struct stIDnRect
+{
+	int id;
+	Rect rect;
+};
+typedef std::deque<stIDnRect> IDnRectSet;
+
+struct stParamEvaluator
+{
+	std::string strGTPath;
+	int nStartFrameIndex;
+	int nEndFrameIndex;
+	double dIOU = 0.5;
+};
+
+struct stGTMatchingResult
+{
+	int id;
+	std::deque<std::pair<int, int>> queueMatchedResultID;  // frame index, matched TR id
+};
 
 struct stEvaluationResult
 {
 	double fMOTA;
-	double fMOTP;
-	double fMOTAL;
 	double fRecall;
 	double fPrecision;
-	double fMissTargetPerGroundTruth;
-	double fFalseAlarmPerGroundTruth;
-	double fFalseAlarmPerFrame;
 	int nMissed;
 	int nFalsePositives;
 	int nIDSwitch;
@@ -35,40 +48,22 @@ public:
 
 	void Initialize(stParamEvaluator _stParams);
 	void Finalize(void);
-
-	void SetResult(hj::CTrack3DResult &trackResult);
-	void SetResult(hj::TrackSet &trackSet, unsigned int timeIdx);	
-	void LoadResultFromText(std::string strFilepath);
+	void InsertResult(hj::CTrackResult &trackResult);
 	void Evaluate(void);
-	//stEvaluationResult EvaluateWithCrop(double cropMargin);
-
-	stEvaluationResult* GetEvaluationResult(void) { return &m_stResult; }
+	
+	stEvaluationResult GetEvaluationResult(void) { return stEvaluationResult_; }
 	void PrintResultToConsole();
-	void PrintResultToFile(void);
-	void PrintResultToFile(const char *strFilepathAndName);
-	void PrintResultMatrix(const char *strFilepathAndName);
+	void PrintResultToFile(const char *strFilepathAndName = NULL);
 	std::string PrintResultToString();
 
 private:
-	bool bInit;
-	int m_nNumObj;
-	int m_nNumTime;
-	int m_nSavedResult;
-
-	cv::Mat matXgt;
-	cv::Mat matYgt;
-	cv::Mat matX;
-	cv::Mat matY;
-
-	hj::Rect m_rectCropZone;
-	hj::Rect m_rectCropZoneMargin;
-	hj::Rect m_rectInnerCropZone;
-
-	std::deque<unsigned int> m_queueID;
-	std::vector<pointInfoSet> m_queueSavedResult;
-
-	stParamEvaluator m_stParams;
-	stEvaluationResult m_stResult;
+	bool bInit_;
+	int nNumGTObjects_;
+	stParamEvaluator stParams_;
+	stEvaluationResult stEvaluationResult_;
+	std::deque<std::pair<int, IDnRectSet>> queueGTs_;
+	std::deque<std::pair<int, IDnRectSet>> queueTrackResults_;
+	std::deque<stGTMatchingResult> queueGTtoTrackResult_;
 };
 
 }

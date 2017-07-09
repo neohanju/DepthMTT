@@ -40,7 +40,7 @@ bool CreateDirectoryForWindows(const std::string &dirName);
 bool GetFileList(const std::string _dirPath, const std::string _fileFormat, std::vector<std::string> &_outputVecFileNameList);
 void printLog(const char *filename, std::string strLog);
 std::string MakeTrackIDList(TrackSet *tracks);
-std::vector<CDetection> ReadDetectionResultWithTxt(std::string _strFilePath, DETECTION_TYPE _detectionType = FULLBODY);
+std::vector<CDetection> ReadDetectionResultWithTxt(std::string _strFilePath, DETECTION_TYPE _detectionType = DEPTH_HEAD);
 
 }
 

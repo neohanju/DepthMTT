@@ -13,6 +13,9 @@
     <Filter Include="Haanju Library\Smoother">
       <UniqueIdentifier>{43715d6c-7810-453b-b8fb-0aa8540a77af}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Evaluation">
+      <UniqueIdentifier>{2d535c69-efbb-4352-bd4f-9b61ebb79f1e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="haanju_math.hpp">
@@ -52,6 +55,9 @@
       <Filter>Haanju Library</Filter>
     </ClInclude>
     <ClInclude Include="DepthMTTracker.h" />
+    <ClInclude Include="Evaluator.h">
+      <Filter>Evaluation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="haanju_matOperations.cpp">
@@ -89,5 +95,8 @@
     </ClCompile>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="DepthMTTracker.cpp" />
+    <ClCompile Include="Evaluator.cpp">
+      <Filter>Evaluation</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
