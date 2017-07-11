@@ -10,9 +10,6 @@
     <Filter Include="Haanju Library\Types">
       <UniqueIdentifier>{3dad2d63-f33d-4cca-9a6c-15a99b42a40f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Haanju Library\Smoother">
-      <UniqueIdentifier>{43715d6c-7810-453b-b8fb-0aa8540a77af}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Evaluation">
       <UniqueIdentifier>{2d535c69-efbb-4352-bd4f-9b61ebb79f1e}</UniqueIdentifier>
     </Filter>
@@ -39,17 +36,11 @@
     <ClInclude Include="HungarianMethod.h">
       <Filter>Haanju Library\Hungarian Method</Filter>
     </ClInclude>
-    <ClInclude Include="SGSmoother.h">
-      <Filter>Haanju Library\Smoother</Filter>
-    </ClInclude>
     <ClInclude Include="types.hpp">
       <Filter>Haanju Library\Types</Filter>
     </ClInclude>
     <ClInclude Include="types_3D.h">
       <Filter>Haanju Library\Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Point3DSmoother.h">
-      <Filter>Haanju Library\Smoother</Filter>
     </ClInclude>
     <ClInclude Include="haanju_3D.hpp">
       <Filter>Haanju Library</Filter>
@@ -81,14 +72,8 @@
     <ClCompile Include="HungarianMethod.cpp">
       <Filter>Haanju Library\Hungarian Method</Filter>
     </ClCompile>
-    <ClCompile Include="SGSmoother.cpp">
-      <Filter>Haanju Library\Smoother</Filter>
-    </ClCompile>
     <ClCompile Include="types_3D.cpp">
       <Filter>Haanju Library\Types</Filter>
-    </ClCompile>
-    <ClCompile Include="Point3DSmoother.cpp">
-      <Filter>Haanju Library\Smoother</Filter>
     </ClCompile>
     <ClCompile Include="haanju_3D.cpp">
       <Filter>Haanju Library</Filter>

@@ -157,9 +157,7 @@
     <ClInclude Include="haanju_string.hpp" />
     <ClInclude Include="haanju_visualize.hpp" />
     <ClInclude Include="HungarianMethod.h" />
-    <ClInclude Include="Point3DSmoother.h" />
     <ClInclude Include="DepthMTTracker.h" />
-    <ClInclude Include="SGSmoother.h" />
     <ClInclude Include="types.hpp" />
     <ClInclude Include="types_3D.h" />
   </ItemGroup>
@@ -174,9 +172,7 @@
     <ClCompile Include="hannju_visualize.cpp" />
     <ClCompile Include="HungarianMethod.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Point3DSmoother.cpp" />
     <ClCompile Include="DepthMTTracker.cpp" />
-    <ClCompile Include="SGSmoother.cpp" />
     <ClCompile Include="types_3D.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

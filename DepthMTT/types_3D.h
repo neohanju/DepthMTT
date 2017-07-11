@@ -31,7 +31,7 @@
 #ifndef __HAANJU_TYPES_3D_H__
 #define __HAANJU_TYPES_3D_H__
 
-#include "Point3DSmoother.h"
+#include "types.hpp"
 
 namespace hj
 {
@@ -212,9 +212,6 @@ public:
 
 	// reconstruction related
 	std::deque<CReconstruction> reconstructions;
-
-	// smoothing related
-	CPoint3DSmoother smoother;
 
 	// cost
 	double costTotal;
