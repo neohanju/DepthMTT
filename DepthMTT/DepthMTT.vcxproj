@@ -152,8 +152,6 @@
     <ClInclude Include="haanju_3D.hpp" />
     <ClInclude Include="haanju_fileIO.hpp" />
     <ClInclude Include="haanju_math.hpp" />
-    <ClInclude Include="haanju_matOperations.hpp" />
-    <ClInclude Include="haanju_misc.hpp" />
     <ClInclude Include="haanju_string.hpp" />
     <ClInclude Include="haanju_visualize.hpp" />
     <ClInclude Include="HungarianMethod.h" />
@@ -166,8 +164,6 @@
     <ClCompile Include="haanju_3D.cpp" />
     <ClCompile Include="haanju_fileIO.cpp" />
     <ClCompile Include="haanju_math.cpp" />
-    <ClCompile Include="haanju_matOperations.cpp" />
-    <ClCompile Include="haanju_misc.cpp" />
     <ClCompile Include="haanju_string.cpp" />
     <ClCompile Include="hannju_visualize.cpp" />
     <ClCompile Include="HungarianMethod.cpp" />

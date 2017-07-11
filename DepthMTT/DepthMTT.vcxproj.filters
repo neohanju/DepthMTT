@@ -18,12 +18,6 @@
     <ClInclude Include="haanju_math.hpp">
       <Filter>Haanju Library</Filter>
     </ClInclude>
-    <ClInclude Include="haanju_matOperations.hpp">
-      <Filter>Haanju Library</Filter>
-    </ClInclude>
-    <ClInclude Include="haanju_misc.hpp">
-      <Filter>Haanju Library</Filter>
-    </ClInclude>
     <ClInclude Include="haanju_string.hpp">
       <Filter>Haanju Library</Filter>
     </ClInclude>
@@ -51,12 +45,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="haanju_matOperations.cpp">
-      <Filter>Haanju Library</Filter>
-    </ClCompile>
-    <ClCompile Include="haanju_misc.cpp">
-      <Filter>Haanju Library</Filter>
-    </ClCompile>
     <ClCompile Include="haanju_string.cpp">
       <Filter>Haanju Library</Filter>
     </ClCompile>
