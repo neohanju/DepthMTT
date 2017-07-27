@@ -7,69 +7,33 @@
     <Filter Include="Haanju Library\Hungarian Method">
       <UniqueIdentifier>{b53badd0-dbb6-4fa1-a99e-ba80a84eec59}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Haanju Library\Types">
-      <UniqueIdentifier>{3dad2d63-f33d-4cca-9a6c-15a99b42a40f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Evaluation">
       <UniqueIdentifier>{2d535c69-efbb-4352-bd4f-9b61ebb79f1e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="haanju_math.hpp">
-      <Filter>Haanju Library</Filter>
-    </ClInclude>
-    <ClInclude Include="haanju_string.hpp">
-      <Filter>Haanju Library</Filter>
-    </ClInclude>
-    <ClInclude Include="haanju_visualize.hpp">
-      <Filter>Haanju Library</Filter>
-    </ClInclude>
-    <ClInclude Include="haanju_fileIO.hpp">
-      <Filter>Haanju Library</Filter>
-    </ClInclude>
     <ClInclude Include="HungarianMethod.h">
       <Filter>Haanju Library\Hungarian Method</Filter>
-    </ClInclude>
-    <ClInclude Include="types.hpp">
-      <Filter>Haanju Library\Types</Filter>
-    </ClInclude>
-    <ClInclude Include="types_3D.h">
-      <Filter>Haanju Library\Types</Filter>
-    </ClInclude>
-    <ClInclude Include="haanju_3D.hpp">
-      <Filter>Haanju Library</Filter>
     </ClInclude>
     <ClInclude Include="DepthMTTracker.h" />
     <ClInclude Include="Evaluator.h">
       <Filter>Evaluation</Filter>
     </ClInclude>
+    <ClInclude Include="haanju_utils.hpp">
+      <Filter>Haanju Library</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="haanju_string.cpp">
-      <Filter>Haanju Library</Filter>
-    </ClCompile>
-    <ClCompile Include="hannju_visualize.cpp">
-      <Filter>Haanju Library</Filter>
-    </ClCompile>
-    <ClCompile Include="haanju_fileIO.cpp">
-      <Filter>Haanju Library</Filter>
-    </ClCompile>
-    <ClCompile Include="haanju_math.cpp">
-      <Filter>Haanju Library</Filter>
-    </ClCompile>
     <ClCompile Include="HungarianMethod.cpp">
       <Filter>Haanju Library\Hungarian Method</Filter>
-    </ClCompile>
-    <ClCompile Include="types_3D.cpp">
-      <Filter>Haanju Library\Types</Filter>
-    </ClCompile>
-    <ClCompile Include="haanju_3D.cpp">
-      <Filter>Haanju Library</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="DepthMTTracker.cpp" />
     <ClCompile Include="Evaluator.cpp">
       <Filter>Evaluation</Filter>
+    </ClCompile>
+    <ClCompile Include="haanju_utils.cpp">
+      <Filter>Haanju Library</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

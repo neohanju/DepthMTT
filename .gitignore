@@ -286,5 +286,9 @@ __pycache__/
 *.btm.cs
 *.odx.cs
 *.xsd.cs
-/DepthMTT/data/MTT_S_02_result_20170627_203959.avi
-/DepthMTT/data/MTT_S_01_result_20170627_204523.avi
+
+/DepthMTT/data/*.txt
+/DepthMTT/data/*.csv
+/DepthMTT/data/*.avi
+DepthMTT/data/result-on-half-sized-input
+DepthMTT/data/result-on-full-sized-input

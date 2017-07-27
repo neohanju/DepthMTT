@@ -77,13 +77,12 @@
 #include <sstream>
 #include <iostream>
 #include "opencv2\highgui\highgui.hpp"
-#include "types.hpp"
-#include "DepthMTTracker.h"
-#include "haanju_string.hpp"
-#include "haanju_fileIO.hpp"
+#include "haanju_utils.hpp"
 #include "Evaluator.h"
 
-#define MTT_S_05
+
+#define MTT_S_04  // <- modify this to select the test sequences
+
 #ifdef MTT_S_01
 	#define DATASET_PATH (".\\data\\MTT_S_01")
 	#define START_FRAME_INDEX (0)
@@ -110,25 +109,33 @@
 #define END_FRAME_INDEX (235)
 #endif
 
+
 int main(int argc, char** argv)
 {	
 	std::string strDatasetPath = std::string(DATASET_PATH);
-	std::string strFilePath;
+	std::string strFilePath;  // <- temporary file path for this and that
 	cv::Mat matCurFrame;
-	hj::DetectionSet curDetections;
-	hj::CTrackResult trackResult;
+	hj::DetectionSet curDetections;	
 
-	// init tracker
-	hj::stParamTrack trackParams;
+
+	//---------------------------------------------------
+	// TRACKER INITIATION
+	//---------------------------------------------------
+	hj::CTrackResult trackResult;     // <- The tracking result will be saved here
+	hj::stParamTrack trackParams;     // <- Contains whole parameters of tracking module. Using default values is recommended.
 	trackParams.nImageWidth = 512;
 	trackParams.nImageHeight = 424;
+	trackParams.dImageRescale = 0.5;  // <- Heavy influence on the speed of the algorithm.
 	trackParams.bVisualize = true;
-	trackParams.bVideoRecord = false;
+	trackParams.bVideoRecord = true;  // <- To recoder the result visualization.
 	trackParams.strVideoRecordPath = strDatasetPath;
-	hj::DepthMTTracker cTracker;
+	hj::CDepthMTTracker cTracker;      // <- The instance of a multi-target tracker.
 	cTracker.Initialize(trackParams);
 
-	// init evaluator
+
+	//---------------------------------------------------
+	// EVALUATION MODULE INITIATION
+	//---------------------------------------------------
 	hj::stParamEvaluator evalParams;
 	evalParams.strGTPath = strDatasetPath;
 	evalParams.nStartFrameIndex = START_FRAME_INDEX;
@@ -136,33 +143,55 @@ int main(int argc, char** argv)
 	evalParams.dIOU = 0.5;
 	hj::CEvaluator evaluator;
 	evaluator.Initialize(evalParams);
+	std::string strEvalFilePath = evalParams.strGTPath + "_evaluation_result.txt";
 
+
+	//---------------------------------------------------
+	// PROC. TIME LOGGING
+	//---------------------------------------------------
+	FILE *fp;
+	std::string strProcTimeFilePath = strDatasetPath + "_procTime.csv";
+	fopen_s(&fp, strProcTimeFilePath.c_str(), "w");
+
+	
+	//---------------------------------------------------
+	// MAIN LOOP FOR TRACKING
+	//---------------------------------------------------
 	for (int fIdx = START_FRAME_INDEX; fIdx <= END_FRAME_INDEX; fIdx++)
 	{
-		// get frame image
+		// Grab frame image
 		strFilePath = strDatasetPath + "\\" + hj::FormattedString("%06d.png", fIdx);
 		matCurFrame = cv::imread(strFilePath, cv::IMREAD_GRAYSCALE);
 		if (matCurFrame.empty())
 		{
 			std::cerr << "No such a file " << strFilePath << std::endl;
+			fclose(fp);
 			return -1;
 		}
 
-		// get detections
+		// Read detections
 		strFilePath = strDatasetPath + "/" + hj::FormattedString("%06d.txt", fIdx);
-		curDetections = hj::ReadDetectionResultWithTxt(strFilePath, hj::DEPTH_HEAD);
+		curDetections = hj::CDepthMTTracker::ReadDetectionResultWithTxt(strFilePath);
 
-		// track
+		// Track targets between consecutive frames
 		trackResult = cTracker.Track(curDetections, matCurFrame, fIdx);
 		evaluator.InsertResult(trackResult);
+		fprintf_s(fp, "%d,%lld\n", fIdx, (long long)trackResult.procTime);
 	}
+	fclose(fp);  // proc. time logging
 
+
+	//---------------------------------------------------
+	// EVALUATION
+	//---------------------------------------------------
 	evaluator.Evaluate();
 	evaluator.PrintResultToConsole();
-	evaluator.PrintResultToFile();
+	evaluator.PrintResultToFile(strEvalFilePath.c_str());
+
 
 	return 0;
 }
+
 
 //()()
 //('')HAANJU.YOO

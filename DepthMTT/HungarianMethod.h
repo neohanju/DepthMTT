@@ -80,7 +80,7 @@
 namespace hj
 {
 
-typedef struct _stMatchInfo
+struct stMatchInfo
 {
 	std::vector<unsigned int> rows;
 	std::vector<unsigned int> cols;
@@ -88,7 +88,7 @@ typedef struct _stMatchInfo
 	std::vector<std::vector<float>> costMatrix;
 	std::vector<std::vector<float>> matchMatrix;
 	float totalCost;
-} stMatchInfo;
+};
 
 class CHungarianMethod
 {

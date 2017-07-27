@@ -149,27 +149,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Evaluator.h" />
-    <ClInclude Include="haanju_3D.hpp" />
-    <ClInclude Include="haanju_fileIO.hpp" />
-    <ClInclude Include="haanju_math.hpp" />
-    <ClInclude Include="haanju_string.hpp" />
-    <ClInclude Include="haanju_visualize.hpp" />
+    <ClInclude Include="haanju_utils.hpp" />
     <ClInclude Include="HungarianMethod.h" />
     <ClInclude Include="DepthMTTracker.h" />
-    <ClInclude Include="types.hpp" />
-    <ClInclude Include="types_3D.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Evaluator.cpp" />
-    <ClCompile Include="haanju_3D.cpp" />
-    <ClCompile Include="haanju_fileIO.cpp" />
-    <ClCompile Include="haanju_math.cpp" />
-    <ClCompile Include="haanju_string.cpp" />
-    <ClCompile Include="hannju_visualize.cpp" />
+    <ClCompile Include="haanju_utils.cpp" />
     <ClCompile Include="HungarianMethod.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="DepthMTTracker.cpp" />
-    <ClCompile Include="types_3D.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

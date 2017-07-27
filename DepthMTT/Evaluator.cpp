@@ -1,8 +1,7 @@
 #include "Evaluator.h"
 #include <numeric>
 #include <limits>
-#include "haanju_fileIO.hpp"
-#include "haanju_string.hpp"
+#include "haanju_utils.hpp"
 #include "HungarianMethod.h"
 
 
@@ -17,6 +16,7 @@ CEvaluator::CEvaluator(void)
 
 CEvaluator::~CEvaluator(void)
 {
+	Finalize();
 }
 
 
@@ -44,17 +44,35 @@ void CEvaluator::Initialize(stParamEvaluator _stParams)
 	for (int fIdx = stParams_.nStartFrameIndex, queuePos = 0; fIdx <= stParams_.nEndFrameIndex; fIdx++, queuePos++)
 	{
 		std::string strFilePath = stParams_.strGTPath + "/" + hj::FormattedString("%06d.txt", fIdx);
-		std::vector<hj::CDetection> curGTObjects = hj::ReadDetectionResultWithTxt(strFilePath);
-		queueGTs_[queuePos].first = fIdx;
-		for (int objIdx = 0; objIdx < curGTObjects.size(); objIdx++)
-		{
-			// save ground truth
-			stIDnRect IDnRect = { curGTObjects[objIdx].id , curGTObjects[objIdx].box };
-			queueGTs_[queuePos].second.push_back(IDnRect);
 
-			// count the number of GT objects
-			if (curGTObjects[objIdx].id + 1 > nNumGTObjects_)
-				nNumGTObjects_ = curGTObjects[objIdx].id + 1;
+		int num_detection = 0;
+		float x, y, w, h, depth, id;
+
+		queueGTs_[queuePos].first = fIdx;
+		FILE *fid;
+		try {
+			fopen_s(&fid, strFilePath.c_str(), "r");
+			if (NULL == fid)
+				continue;
+
+			// read # of detections
+			fscanf_s(fid, "%d\n", &num_detection);
+
+			// read box infos
+			for (int detect_idx = 0; detect_idx < num_detection; detect_idx++)
+			{
+				fscanf_s(fid, "%f %f %f %f %f %f\n", &id, &depth, &x, &y, &w, &h);
+				stIDnRect IDnRect = { (int)id , cv::Rect2d((double)x, (double)y, (double)w, (double)h) };
+				queueGTs_[queuePos].second.push_back(IDnRect);
+
+				// count the number of GT objects
+				if (IDnRect.id + 1 > nNumGTObjects_)
+					nNumGTObjects_ = IDnRect.id + 1;
+			}
+			fclose(fid);
+		}
+		catch (int dwError) {
+			printf("[ERROR] file open error with detection result reading: %d\n", dwError);
 		}
 	}
 	bInit_ = true;
@@ -138,17 +156,17 @@ void CEvaluator::Evaluate(void)
 
 		for (int gtIdx = 0; gtIdx < queueGTs_[i].second.size(); gtIdx++)
 		{
-			hj::Rect gtBox = queueGTs_[i].second[gtIdx].rect;
+			cv::Rect gtBox = queueGTs_[i].second[gtIdx].rect;
 			for (int trackIdx = 0, costPos = gtIdx;
 				trackIdx < queueTrackResults_[trackResultPos].second.size(); 
 				trackIdx++, costPos += (int)queueGTs_[i].second.size())
 			{
-				hj::Rect trackBox = queueTrackResults_[trackResultPos].second[trackIdx].rect;
-				if (!trackBox.overlap(gtBox))
+				cv::Rect trackBox = queueTrackResults_[trackResultPos].second[trackIdx].rect;
+				if (!hj::CheckOverlap(trackBox, gtBox))
 					continue;
 				
 				// get intersection over union
-				double iou = trackBox.overlappedArea(gtBox) / (trackBox.area() + gtBox.area() - trackBox.overlappedArea(gtBox));
+				double iou = hj::OverlappedArea(trackBox, gtBox) / (trackBox.area() + gtBox.area() - hj::OverlappedArea(trackBox, gtBox));
 				if (iou < stParams_.dIOU)
 					continue;
 

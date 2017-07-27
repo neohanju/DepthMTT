@@ -1,6 +1,6 @@
 #pragma once
 
-#include "types_3D.h"
+#include "DepthMTTracker.h"
 
 namespace hj
 {
@@ -8,7 +8,7 @@ namespace hj
 struct stIDnRect
 {
 	int id;
-	Rect rect;
+	cv::Rect2d rect;
 };
 typedef std::deque<stIDnRect> IDnRectSet;
 
