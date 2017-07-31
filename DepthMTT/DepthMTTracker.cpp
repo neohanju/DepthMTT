@@ -382,7 +382,7 @@ CTrackResult CDepthMTTracker::Track(
 	time_t timeStartTrack = clock();
 
 	assert(bInit_ && _curFrame.rows == matGrayImage_.rows
-		&& curFrame.cols == matGrayImage_.cols);	
+		&& _curFrame.cols == matGrayImage_.cols);	
 	nCurrentFrameIdx_ = _frameIdx;
 
 	/* input frame buffering (for bi-directional tracking) */
